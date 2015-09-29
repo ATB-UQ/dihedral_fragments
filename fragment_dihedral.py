@@ -1,4 +1,4 @@
-from copy import deepcopy
+from copy import deepcopy, copy
 class FragmentDihedral(object):
 
     def __init__(self, dihedral_string=None, atom_list=None):
@@ -12,6 +12,13 @@ class FragmentDihedral(object):
         else:
             self.neighbours_1, self.atom_2, self.atom_3, self.neighbours_4= atom_list
 
+        canonical_rep = self.__canonical_rep__()
+
+        self.neighbours_1 = canonical_rep.neighbours_1
+        self.atom_2 = canonical_rep.atom_2
+        self.atom_3 = canonical_rep.atom_3
+        self.neighbours_4 = canonical_rep.neighbours_4
+
     def __str__(self):
         return "{neighbours_1}|{atom_2}|{atom_3}|{neighbours_4}".format(
             neighbours_1=','.join(self.neighbours_1),
@@ -21,13 +28,14 @@ class FragmentDihedral(object):
         )
 
     def __eq__(self, other):
-        return self.__canonical_rep__().__dict__ == other.__canonical_rep__().__dict__
+        return self.__dict__ == other.__dict__
+        #return self.__canonical_rep__().__dict__ == other.__canonical_rep__().__dict__
 
     def __ne__(self, other):
         return not self == other
 
     def __canonical_rep__(self):
-        other = deepcopy(self)
+        other = copy(self)
         # Order each neighbour list by alphabetical order
         # WARNING: Keep in mind that maintaining order will be necessary for maintaining sterochemistry information
         other.neighbours_1.sort()
