@@ -46,7 +46,36 @@ class FragmentDihedral(object):
             other.neighbours_1, other.neighbours_4 = other.neighbours_4, other.neighbours_1
         return other
 
+def sql_pattern_matching_for(pattern):
+    assert len([x for x in pattern if x == '%']) <= 1
+
+    if not '%' in pattern:
+        return 'dihedral_string="pattern"'.format(pattern=pattern)
+
+    return '(dihedral_string LIKE "{pattern}" OR dihedral_string LIKE "{reversed_pattern}")'.format(
+        pattern=correct_pattern(pattern),
+        reversed_pattern=correct_pattern(pattern, should_reverse=True),
+    )
+
+
+def correct_pattern(pattern, should_reverse=False):
+    return '|'.join(
+        (reversed if should_reverse else lambda x:x)(
+            [sorted_components(i, x) for (i, x) in enumerate(pattern.split('|'))]
+        )
+    )
+
+def sorted_components(component_index, component):
+    if component_index in (0,3):
+        return ','.join(sorted(component.split(',')))
+    else:
+        return component
+
 if __name__ == "__main__" :
+    print sql_pattern_matching_for('C|N||C|C')
+    print sql_pattern_matching_for('C,A|N|%')
+    exit()
+
     dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
     print dihedral_1
     dihedral_2 = FragmentDihedral("C,H,H|C|C|C,C,H")
