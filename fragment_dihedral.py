@@ -48,7 +48,9 @@ class FragmentDihedral(object):
         return other
 
 SQL_SUBSTITUTION_CHARACTERS = ('_', '%')
+SQL_FULL_REGEX_CHARACTERS = ('.', '[', ']', '^', '$')
 has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARACTERS])
+has_regex_pattern = lambda x: any([y in x for y in SQL_FULL_REGEX_CHARACTERS])
 
 def sql_OR(*args):
     return ' '.join(
@@ -64,12 +66,19 @@ def sql_pattern_matching_for(pattern):
     if not has_substitution_pattern(pattern):
         return 'dihedral_string="{pattern}"'.format(pattern=pattern)
     else:
+        use_full_regex = has_regex_pattern(pattern)
         patterns = [
             correct_pattern(pattern, should_reverse=should_reverse, put_substitution_pattern_first=put_substitution_pattern_first)
             for (should_reverse, put_substitution_pattern_first) in product(TRUE_OF_FALSE, TRUE_OF_FALSE)
         ]
         return sql_OR(
-            [ 'dihedral_string LIKE "{0}"'.format(match_pattern) for match_pattern in patterns]
+            [
+                'dihedral_string {sql_operator} "{match_pattern}"'.format(
+                    sql_operator=('LIKE' if not use_full_regex else 'REGEXP'),
+                    match_pattern=match_pattern,
+                )
+                for match_pattern in patterns
+            ]
         )
 
 def correct_pattern(pattern, should_reverse=False, put_substitution_pattern_first=PUT_SUBSTITUTION_PATTERN_FIRST):
@@ -91,9 +100,16 @@ def sorted_components(component_index, component, put_substitution_pattern_first
         return component
 
 def sorted_components_list(component_list, put_substitution_pattern_first=PUT_SUBSTITUTION_PATTERN_FIRST):
-   return sorted(
-       component_list,
-       key=lambda x: ((x in SQL_SUBSTITUTION_CHARACTERS) if not put_substitution_pattern_first else (x not in SQL_SUBSTITUTION_CHARACTERS), x)
+    sort_first = lambda x: (has_regex_pattern(x) or has_substitution_pattern(x))
+
+    if put_substitution_pattern_first:
+        final_sort_first = lambda x: not sort_first(x)
+    else:
+        final_sort_first = lambda x: sort_first(x)
+
+    return sorted(
+        component_list,
+        key=lambda x: (final_sort_first(x), x)
     )
 
 if __name__ == "__main__" :
