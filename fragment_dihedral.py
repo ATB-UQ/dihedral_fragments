@@ -1,4 +1,5 @@
 from copy import deepcopy, copy
+from itertools import product
 class FragmentDihedral(object):
 
     def __init__(self, dihedral_string=None, atom_list=None):
@@ -46,34 +47,58 @@ class FragmentDihedral(object):
             other.neighbours_1, other.neighbours_4 = other.neighbours_4, other.neighbours_1
         return other
 
-def sql_pattern_matching_for(pattern):
-    assert len([x for x in pattern if x == '%']) <= 1
+SQL_SUBSTITUTION_CHARACTERS = ('_', '%')
+has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARACTERS])
 
-    if not '%' in pattern:
-        return 'dihedral_string="pattern"'.format(pattern=pattern)
-
-    return '(dihedral_string LIKE "{pattern}" OR dihedral_string LIKE "{reversed_pattern}")'.format(
-        pattern=correct_pattern(pattern),
-        reversed_pattern=correct_pattern(pattern, should_reverse=True),
+def sql_OR(*args):
+    return ' '.join(
+        ['('] + [' OR '.join(*args)] + [')']
     )
 
+TRUE_OF_FALSE = [False, True]
+PUT_SUBSTITUTION_PATTERN_FIRST = True
 
-def correct_pattern(pattern, should_reverse=False):
+def sql_pattern_matching_for(pattern):
+    assert len([x for x in pattern if has_substitution_pattern(x) ]) <= 3, [x for x in pattern if has_substitution_pattern(pattern) ]
+
+    if not has_substitution_pattern(pattern):
+        return 'dihedral_string="{pattern}"'.format(pattern=pattern)
+    else:
+        patterns = [
+            correct_pattern(pattern, should_reverse=should_reverse, put_substitution_pattern_first=put_substitution_pattern_first)
+            for (should_reverse, put_substitution_pattern_first) in product(TRUE_OF_FALSE, TRUE_OF_FALSE)
+        ]
+        return sql_OR(
+            [ 'dihedral_string LIKE "{0}"'.format(match_pattern) for match_pattern in patterns]
+        )
+
+def correct_pattern(pattern, should_reverse=False, put_substitution_pattern_first=PUT_SUBSTITUTION_PATTERN_FIRST):
     return '|'.join(
         (reversed if should_reverse else lambda x:x)(
-            [sorted_components(i, x) for (i, x) in enumerate(pattern.split('|'))]
+            [sorted_components(i, x, put_substitution_pattern_first=put_substitution_pattern_first) for (i, x) in enumerate(pattern.split('|'))]
         )
     )
 
-def sorted_components(component_index, component):
+def sorted_components(component_index, component, put_substitution_pattern_first=PUT_SUBSTITUTION_PATTERN_FIRST):
     if component_index in (0,3):
-        return ','.join(sorted(component.split(',')))
+        return ','.join(
+            sorted_components_list(
+                component.split(','),
+                put_substitution_pattern_first=put_substitution_pattern_first,
+            )
+        )
     else:
         return component
 
+def sorted_components_list(component_list, put_substitution_pattern_first=PUT_SUBSTITUTION_PATTERN_FIRST):
+   return sorted(
+       component_list,
+       key=lambda x: ((x in SQL_SUBSTITUTION_CHARACTERS) if not put_substitution_pattern_first else (x not in SQL_SUBSTITUTION_CHARACTERS), x)
+    )
+
 if __name__ == "__main__" :
     print sql_pattern_matching_for('C|N||C|C')
-    print sql_pattern_matching_for('C,A|N|%')
+    print sql_pattern_matching_for('C,A|N|N|H,_,C')
     exit()
 
     dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
