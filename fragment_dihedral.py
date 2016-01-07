@@ -16,20 +16,37 @@ CHEMICAL_GROUPS = (
     ('amine I', '%|C|N|H,H'),
     ('amine II', '%|C|N|C,H'),
     ('amine III', '%|C|N|C,C'),
-    ('monofluoro', 'F,%|C|%|%'),
-    ('difluoro', 'F,F,%|C|%|%'),
-    ('trifluoro', 'F,F,F|C|%|%'),
-    ('chloro', 'CL,[^C]*[^L]*,[^C]*[^L]*|C|%|%'),
-    ('dichloro', 'CL,CL,[^C]*[^L]*|C|%|%'),
-    ('trichloro', 'CL,CL,CL|C|%|%'),
-    ('bromo', 'BR,%|C|%|%'),
-    ('dibromo', 'BR,BR,%|C|%|%'),
-    ('tribromo', 'BR,BR,BR|C|%|%'),
-    ('iodo', 'I,%|C|%|%'),
-    ('diiodo', 'I,I,%|C|%|%'),
-    ('triiodo', 'I,I,I|C|%|%'),
+    ('monofluoro', 'F,!X,!X|C|Z|%'),
+    ('difluoro', 'F,F,!X|C|Z|%'),
+    ('trifluoro', 'F,F,F|C|Z|%'),
+    ('chloro', 'CL,!X,!X|C|Z|%'),
+    ('dichloro', 'CL,CL,!X|C|Z|%'),
+    ('trichloro', 'CL,CL,CL|C|Z|%'),
+    ('bromo', 'BR,!X,!X|C|Z|%'),
+    ('dibromo', 'BR,BR,!X|C|Z|%'),
+    ('tribromo', 'BR,BR,BR|C|Z|%'),
+    ('iodo', 'I,!X,!X|C|Z|%'),
+    ('diiodo', 'I,I,!X|C|Z|%'),
+    ('triiodo', 'I,I,I|C|Z|%'),
     ('thiol', '%|C|S|H'),
 )
+
+SYNTAX_HELP = '''
+<h5>Syntax Help</h5>
+
+<p class='help block'>
+  <span style='font-weight:bold'>Atom categories</span>
+  <ul>
+    <li><code>Z</code>Any (single) atom</li>
+    <li><code>X</code>Any (single) halogen (F, Cl, Br, I)</li>
+  </ul>
+
+  <span style='font-weight:bold'>Operators</span>
+  <ul>
+    <li><code>!{Y}</code>Any (single) atom except <code>Y</code>. Ex: <code>!CL|C|C|%</code></li>
+  </ul>
+</p>
+'''
 
 class FragmentDihedral(object):
 
@@ -79,21 +96,33 @@ class FragmentDihedral(object):
         return other
 
 SQL_SUBSTITUTION_CHARACTERS = ('_', '%')
-SQL_FULL_REGEX_CHARACTERS = ('.', '[', ']', '^', '$', 'X')
+SQL_FULL_REGEX_CHARACTERS = ('.', '[', ']', '!', 'X', 'Z')
 has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARACTERS])
-has_regex_pattern = lambda x: any([y in x for y in SQL_FULL_REGEX_CHARACTERS])
+
+def has_regex_pattern(pattern):
+    assert ('$' not in pattern) and ('^' not in pattern)
+    return any([y in pattern for y in SQL_FULL_REGEX_CHARACTERS])
 
 REGEX_START, REGEX_END = ('^', '$')
 
 REGEX_FILTERS = (
-    ('%', '[A-Z,]*'),
-    ('|', '\\\\|'),
-    ('X', '(F|I|BR|CL)'),
+    # Order matters here !
+    ('|', '\\\\|', 'str'),
+    ('!([A-Z]{1,2})', '[^(\\1)]', 're'),
+    ('X', '(F|I|BR|CL)', 'str'),
+    ('Z', '[A-Z]{{1,2}}', 'str'), # The MySQL {m,n} needs to be escaped with two curly brackets {{ }} because it will be interpolated in a str.format() later
+    ('%', '[A-Z,]*', 'str'),
 )
 
 def apply_regex_filters(string):
-    for (pattern, replacement) in REGEX_FILTERS:
-        string = string.replace(pattern, replacement)
+    import re
+    for (pattern, replacement, substitution_type) in REGEX_FILTERS:
+        if substitution_type == 'str':
+            string = string.replace(pattern, replacement)
+        elif substitution_type == 're':
+            string = re.sub(pattern, replacement, string)
+        else:
+            raise Exception('Wrong substitution_type')
     return string
 
 def escaped_special_regex_characters(patterns):
@@ -112,7 +141,7 @@ def sql_pattern_matching_for(pattern):
     assert len([x for x in pattern if has_substitution_pattern(x) ]) <= 5, [x for x in pattern if has_substitution_pattern(pattern) ]
 
     if not (has_substitution_pattern(pattern) or has_regex_pattern(pattern)):
-        return 'dihedral_string="{pattern}"'.format(pattern=pattern)
+        return 'dihedral_string="{pattern}"'.format(pattern=FragmentDihedral(pattern))
     else:
         use_full_regex = has_regex_pattern(pattern)
 
@@ -175,7 +204,7 @@ def sorted_components_list(component_list, permutation=()):
     )
 
 if __name__ == "__main__" :
-    for pattern in ('C|N||C|C', 'C,X,B,D|N|N|H,_,C', 'CL,CL,X|C|%|%', 'CL,CL,[^C]*[^L]*|C|C|%'):
+    for pattern in ('C|N||C|C', 'C,X,B,D|N|N|H,_,C', 'CL,CL,X|C|Z|^I', 'CL,CL,[^C]*[^L]*|C|C|%'):
         print pattern
         print sql_pattern_matching_for(pattern)
         print
