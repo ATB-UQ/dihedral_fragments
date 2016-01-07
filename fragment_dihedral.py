@@ -1,5 +1,32 @@
 from copy import deepcopy, copy
 from itertools import product
+
+CHEMICAL_GROUPS = (
+    ('carboxylic acid', '%,O|C|O|H'),
+    ('ester', '%,O|C|O|C'),
+    ('alkyne', '_|C|C|_'),
+    ('alkene', '_,_|C|C|_,_'),
+    ('alcool I', 'C,H,H|C|O|H'),
+    ('alcool II', 'C,C,H|C|O|H'),
+    ('alcool III', 'C,C,C|C|O|H'),
+    ('amine I', '%|C|N|H,H'),
+    ('amine II', '%|C|N|C,H'),
+    ('amine III', '%|C|N|C,C'),
+    ('monofluoro', 'F,%|C|%|%'),
+    ('difluoro', 'F,F,%|C|%|%'),
+    ('trifluoro', 'F,F,F|C|%|%'),
+    ('chloro', 'CL,%|C|%|%'),
+    ('dichloro', 'CL,CL,[^C]*[^L]|C|%|%'),
+    ('trichloro', 'CL,CL,CL|C|%|%'),
+    ('bromo', 'BR,%|C|%|%'),
+    ('dibromo', 'BR,BR,%|C|%|%'),
+    ('tribromo', 'BR,BR,BR|C|%|%'),
+    ('iodo', 'I,%|C|%|%'),
+    ('diiodo', 'I,I,%|C|%|%'),
+    ('triiodo', 'I,I,I|C|%|%'),
+    ('thiol', '%|C|S|H'),
+)
+
 class FragmentDihedral(object):
 
     def __init__(self, dihedral_string=None, atom_list=None):
@@ -52,25 +79,36 @@ SQL_FULL_REGEX_CHARACTERS = ('.', '[', ']', '^', '$')
 has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARACTERS])
 has_regex_pattern = lambda x: any([y in x for y in SQL_FULL_REGEX_CHARACTERS])
 
+REGEX_START, REGEX_END = ('^', '$')
+
+def escaped_special_regex_characters(patterns):
+    return [ (REGEX_START + pattern.replace('%', '[A-Z,]*').replace('|', '\|') + REGEX_END) for pattern in patterns]
+
 def sql_OR(*args):
     return ' '.join(
         ['('] + [' OR '.join(*args)] + [')']
     )
 
-TRUE_OF_FALSE = [False, True]
+TRUE_OR_FALSE = [False, True]
 PUT_SUBSTITUTION_PATTERN_FIRST = True
 
 def sql_pattern_matching_for(pattern):
-    assert len([x for x in pattern if has_substitution_pattern(x) ]) <= 3, [x for x in pattern if has_substitution_pattern(pattern) ]
+    assert len([x for x in pattern if has_substitution_pattern(x) ]) <= 5, [x for x in pattern if has_substitution_pattern(pattern) ]
 
-    if not has_substitution_pattern(pattern):
+    if not (has_substitution_pattern(pattern) or has_regex_pattern(pattern)):
         return 'dihedral_string="{pattern}"'.format(pattern=pattern)
     else:
         use_full_regex = has_regex_pattern(pattern)
+
         patterns = [
             correct_pattern(pattern, should_reverse=should_reverse, put_substitution_pattern_first=put_substitution_pattern_first)
-            for (should_reverse, put_substitution_pattern_first) in product(TRUE_OF_FALSE, TRUE_OF_FALSE)
+            for (should_reverse, put_substitution_pattern_first) in product(TRUE_OR_FALSE, TRUE_OR_FALSE)
         ]
+
+
+        if use_full_regex:
+            patterns = escaped_special_regex_characters(patterns)
+
         return sql_OR(
             [
                 'dihedral_string {sql_operator} "{match_pattern}"'.format(
@@ -115,6 +153,7 @@ def sorted_components_list(component_list, put_substitution_pattern_first=PUT_SU
 if __name__ == "__main__" :
     print sql_pattern_matching_for('C|N||C|C')
     print sql_pattern_matching_for('C,A|N|N|H,_,C')
+    print has_regex_pattern('[CH]|C')
     exit()
 
     dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
@@ -125,4 +164,5 @@ if __name__ == "__main__" :
     dihedral_3 = FragmentDihedral(atom_list=(['H', 'H'], 'C', 'C', ['Cl', 'Cl']))
     print dihedral_3
     print dihedral_3 == dihedral_2
+
 
