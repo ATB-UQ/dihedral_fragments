@@ -1,5 +1,9 @@
 from copy import deepcopy, copy
 from itertools import product
+import sys
+sys.path.insert(0, '../')
+from atb_helpers.iterables import group_by
+from itertools import permutations
 
 CHEMICAL_GROUPS = (
     ('carboxylic acid', '%,O|C|O|H'),
@@ -82,7 +86,7 @@ has_regex_pattern = lambda x: any([y in x for y in SQL_FULL_REGEX_CHARACTERS])
 REGEX_START, REGEX_END = ('^', '$')
 
 def escaped_special_regex_characters(patterns):
-    return [ (REGEX_START + pattern.replace('%', '[A-Z,]*').replace('|', '\|') + REGEX_END) for pattern in patterns]
+    return [ (REGEX_START + pattern.replace('%', '[A-Z,]*').replace('|', '\\\\|') + REGEX_END) for pattern in patterns]
 
 def sql_OR(*args):
     return ' '.join(
@@ -90,6 +94,7 @@ def sql_OR(*args):
     )
 
 TRUE_OR_FALSE = [False, True]
+FALSE = [False]
 PUT_SUBSTITUTION_PATTERN_FIRST = True
 
 def sql_pattern_matching_for(pattern):
@@ -100,9 +105,16 @@ def sql_pattern_matching_for(pattern):
     else:
         use_full_regex = has_regex_pattern(pattern)
 
+        components = pattern.split('|')
+        assert len(components) == 4
+        need_to_reverse_inner_atoms = (components[1] != components[2])
+
+        left_permutations = permutations(range(len(group_by(components[0].split(','), key=lambda x:x))))
+        right_permutation = permutations(range(len(group_by(components[3].split(','), key=lambda x:x))))
+
         patterns = [
-            correct_pattern(pattern, should_reverse=should_reverse, put_substitution_pattern_first=put_substitution_pattern_first)
-            for (should_reverse, put_substitution_pattern_first) in product(TRUE_OR_FALSE, TRUE_OR_FALSE)
+            correct_pattern(pattern, should_reverse=should_reverse, left_permutation=left_permutation, right_permutation=right_permutation)
+            for (should_reverse, left_permutation, right_permutation) in product((TRUE_OR_FALSE if need_to_reverse_inner_atoms else FALSE), left_permutations, right_permutation)
         ]
 
 
@@ -119,41 +131,43 @@ def sql_pattern_matching_for(pattern):
             ]
         )
 
-def correct_pattern(pattern, should_reverse=False, put_substitution_pattern_first=PUT_SUBSTITUTION_PATTERN_FIRST):
+def correct_pattern(pattern, should_reverse=False, left_permutation=(), right_permutation=()):
     return '|'.join(
         (reversed if should_reverse else lambda x:x)(
-            [sorted_components(i, x, put_substitution_pattern_first=put_substitution_pattern_first) for (i, x) in enumerate(pattern.split('|'))]
+            [sorted_components(i, x, left_permutation=left_permutation, right_permutation=right_permutation) for (i, x) in enumerate(pattern.split('|'))]
         )
     )
 
-def sorted_components(component_index, component, put_substitution_pattern_first=PUT_SUBSTITUTION_PATTERN_FIRST):
+def sorted_components(component_index, component, left_permutation=(), right_permutation=()):
     if component_index in (0,3):
         return ','.join(
             sorted_components_list(
                 component.split(','),
-                put_substitution_pattern_first=put_substitution_pattern_first,
+                permutation=left_permutation if component_index == 0 else right_permutation,
             )
         )
     else:
         return component
 
-def sorted_components_list(component_list, put_substitution_pattern_first=PUT_SUBSTITUTION_PATTERN_FIRST):
-    sort_first = lambda x: (has_regex_pattern(x) or has_substitution_pattern(x))
+def sorted_components_list(component_list, permutation=()):
 
-    if put_substitution_pattern_first:
-        final_sort_first = lambda x: not sort_first(x)
-    else:
-        final_sort_first = lambda x: sort_first(x)
+    sorting_dict = dict(
+        zip(
+            sorted(group_by(component_list, lambda x:x).keys()),
+            permutation,
+        )
+    )
 
     return sorted(
         component_list,
-        key=lambda x: (final_sort_first(x), x)
+        key=lambda x: sorting_dict[x],
     )
 
 if __name__ == "__main__" :
-    print sql_pattern_matching_for('C|N||C|C')
-    print sql_pattern_matching_for('C,A|N|N|H,_,C')
-    print has_regex_pattern('[CH]|C')
+    for pattern in ('C|N||C|C', 'C,A,B,D|N|N|H,_,C', 'CL,CL,[^C]*[^L]*|C|%|%', 'CL,CL,[^C]*[^L]*|C|C|%'):
+        print pattern
+        print sql_pattern_matching_for(pattern)
+        print
     exit()
 
     dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
