@@ -19,8 +19,8 @@ CHEMICAL_GROUPS = (
     ('monofluoro', 'F,%|C|%|%'),
     ('difluoro', 'F,F,%|C|%|%'),
     ('trifluoro', 'F,F,F|C|%|%'),
-    ('chloro', 'CL,%|C|%|%'),
-    ('dichloro', 'CL,CL,[^C]*[^L]|C|%|%'),
+    ('chloro', 'CL,[^C]*[^L]*,[^C]*[^L]*|C|%|%'),
+    ('dichloro', 'CL,CL,[^C]*[^L]*|C|%|%'),
     ('trichloro', 'CL,CL,CL|C|%|%'),
     ('bromo', 'BR,%|C|%|%'),
     ('dibromo', 'BR,BR,%|C|%|%'),
@@ -79,14 +79,25 @@ class FragmentDihedral(object):
         return other
 
 SQL_SUBSTITUTION_CHARACTERS = ('_', '%')
-SQL_FULL_REGEX_CHARACTERS = ('.', '[', ']', '^', '$')
+SQL_FULL_REGEX_CHARACTERS = ('.', '[', ']', '^', '$', 'X')
 has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARACTERS])
 has_regex_pattern = lambda x: any([y in x for y in SQL_FULL_REGEX_CHARACTERS])
 
 REGEX_START, REGEX_END = ('^', '$')
 
+REGEX_FILTERS = (
+    ('%', '[A-Z,]*'),
+    ('|', '\\\\|'),
+    ('X', '(F|I|BR|CL)'),
+)
+
+def apply_regex_filters(string):
+    for (pattern, replacement) in REGEX_FILTERS:
+        string = string.replace(pattern, replacement)
+    return string
+
 def escaped_special_regex_characters(patterns):
-    return [ (REGEX_START + pattern.replace('%', '[A-Z,]*').replace('|', '\\\\|') + REGEX_END) for pattern in patterns]
+    return [ (REGEX_START + apply_regex_filters(pattern)  + REGEX_END) for pattern in patterns]
 
 def sql_OR(*args):
     return ' '.join(
@@ -164,7 +175,7 @@ def sorted_components_list(component_list, permutation=()):
     )
 
 if __name__ == "__main__" :
-    for pattern in ('C|N||C|C', 'C,A,B,D|N|N|H,_,C', 'CL,CL,[^C]*[^L]*|C|%|%', 'CL,CL,[^C]*[^L]*|C|C|%'):
+    for pattern in ('C|N||C|C', 'C,X,B,D|N|N|H,_,C', 'CL,CL,X|C|%|%', 'CL,CL,[^C]*[^L]*|C|C|%'):
         print pattern
         print sql_pattern_matching_for(pattern)
         print
