@@ -38,12 +38,15 @@ SYNTAX_HELP = '''
   <span style='font-weight:bold'>Atom categories</span>
   <ul>
     <li><code>Z</code>Any (single) atom</li>
+    <li><code>Y</code>Any (single) atom not (O, N, S)</li>
     <li><code>X</code>Any (single) halogen (F, Cl, Br, I)</li>
   </ul>
 
   <span style='font-weight:bold'>Operators</span>
   <ul>
-    <li><code>!{Y}</code>Any (single) atom except <code>Y</code>. Ex: <code>!CL|C|C|%</code></li>
+    <li><code>!{A}</code>One single atom not of type <code>A</code>. Ex: <code>!CL|C|C|%</code></li>
+    <li><code>{A}+</code>One or more atoms of type <code>A</code>. Ex: <code>CL+|C|C|%</code></li>
+    <li><code>!{A}+</code>One or more atoms not of type <code>A</code>. Ex: <code>!CL+|C|C|%</code></li>
   </ul>
 </p>
 '''
@@ -96,7 +99,7 @@ class FragmentDihedral(object):
         return other
 
 SQL_SUBSTITUTION_CHARACTERS = ('_', '%')
-SQL_FULL_REGEX_CHARACTERS = ('.', '[', ']', '!', 'X', 'Z')
+SQL_FULL_REGEX_CHARACTERS = ('.', '[', ']', '!', '+', 'X', 'Y', 'Z')
 has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARACTERS])
 
 def has_regex_pattern(pattern):
@@ -109,7 +112,9 @@ REGEX_FILTERS = (
     # Order matters here !
     ('|', '\\\\|', 'str'),
     ('!([A-Z]{1,2})', '[^(\\1)]', 're'),
+    ('([A-Z]{1,2})\\+', '(\\1|,)+', 're'),
     ('X', '(F|I|BR|CL)', 'str'),
+    ('Y', '(N|O|S)', 'str'),
     ('Z', '[A-Z]{{1,2}}', 'str'), # The MySQL {m,n} needs to be escaped with two curly brackets {{ }} because it will be interpolated in a str.format() later
     ('%', '[A-Z,]*', 'str'),
 )
@@ -204,7 +209,7 @@ def sorted_components_list(component_list, permutation=()):
     )
 
 if __name__ == "__main__" :
-    for pattern in ('C|N||C|C', 'C,X,B,D|N|N|H,_,C', 'CL,CL,X|C|Z|^I', 'CL,CL,[^C]*[^L]*|C|C|%'):
+    for pattern in ('C|N||C|C', 'C,X,B,D|N|N|H,_,C', 'C+|C|C|C+', 'CL,CL,X|C|Z|!I'):
         print pattern
         print sql_pattern_matching_for(pattern)
         print
