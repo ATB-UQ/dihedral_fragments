@@ -8,8 +8,8 @@ from itertools import permutations
 CHEMICAL_GROUPS = (
     ('carboxylic acid', '%,O|C|O|H'),
     ('ester', '%,O|C|O|C'),
-    ('alkyne', '_|C|C|_'),
-    ('alkene', '_,_|C|C|_,_'),
+    ('alkyne', 'Z|C|C|Z'),
+    ('alkene', 'Z,Z|C|C|Z,Z'),
     ('alcool I', 'C,H,H|C|O|H'),
     ('alcool II', 'C,C,H|C|O|H'),
     ('alcool III', 'C,C,C|C|O|H'),
