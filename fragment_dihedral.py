@@ -28,7 +28,7 @@ CHEMICAL_GROUPS = (
     ('iodo', 'I,!X,!X|C|Z|%'),
     ('diiodo', 'I,I,!X|C|Z|%'),
     ('triiodo', 'I,I,I|C|Z|%'),
-    ('thiol', '%|C|S|H'),
+    ('thiol', 'L+|C|S|H'),
 )
 
 SYNTAX_HELP = '''
@@ -37,6 +37,7 @@ SYNTAX_HELP = '''
 <p class='help block'>
   <span style='font-weight:bold'>Atom categories</span>
   <ul>
+    <li><code>L</code>Any (single) atom in (C,H)</li>
     <li><code>Z</code>Any (single) atom</li>
     <li><code>Y</code>Any (single) atom not (O, N, S)</li>
     <li><code>X</code>Any (single) halogen (F, Cl, Br, I)</li>
@@ -99,7 +100,7 @@ class FragmentDihedral(object):
         return other
 
 SQL_SUBSTITUTION_CHARACTERS = ('_', '%')
-SQL_FULL_REGEX_CHARACTERS = ('.', '[', ']', '!', '+', 'X', 'Y', 'Z')
+SQL_FULL_REGEX_CHARACTERS = ('.', '[', ']', '!', '+', 'L', 'X', 'Y', 'Z')
 has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARACTERS])
 
 def has_regex_pattern(pattern):
@@ -113,6 +114,7 @@ REGEX_FILTERS = (
     ('|', '\\\\|', 'str'),
     ('!([A-Z]{1,2})', '[^(\\1)]', 're'),
     ('([A-Z]{1,2})\\+', '(\\1|,)+', 're'),
+    ('L', '(C|H)', 'str'),
     ('X', '(F|I|BR|CL)', 'str'),
     ('Y', '(N|O|S)', 'str'),
     ('Z', '[A-Z]{{1,2}}', 'str'), # The MySQL {m,n} needs to be escaped with two curly brackets {{ }} because it will be interpolated in a str.format() later
