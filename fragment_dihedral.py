@@ -28,7 +28,7 @@ CHEMICAL_GROUPS = (
     ('iodo', 'I,!X,!X|C|Z|%'),
     ('diiodo', 'I,I,!X|C|Z|%'),
     ('triiodo', 'I,I,I|C|Z|%'),
-    ('thiol', 'L+|C|S|H'),
+    ('thiol', 'J+|C|S|H'),
 )
 
 SYNTAX_HELP = '''
@@ -37,7 +37,7 @@ SYNTAX_HELP = '''
 <p class='help block'>
   <span style='font-weight:bold'>Atom categories</span>
   <ul>
-    <li><code>L</code>Any (single) atom in (C,H)</li>
+    <li><code>J</code>Any (single) atom in (C,H)</li>
     <li><code>Z</code>Any (single) atom</li>
     <li><code>Y</code>Any (single) atom not (O, N, S)</li>
     <li><code>X</code>Any (single) halogen (F, Cl, Br, I)</li>
@@ -45,9 +45,11 @@ SYNTAX_HELP = '''
 
   <span style='font-weight:bold'>Operators</span>
   <ul>
-    <li><code>!{A}</code>One single atom not of type <code>A</code>. Ex: <code>!CL|C|C|%</code></li>
-    <li><code>{A}+</code>One or more atoms of type <code>A</code>. Ex: <code>CL+|C|C|%</code></li>
-    <li><code>!{A}+</code>One or more atoms not of type <code>A</code>. Ex: <code>!CL+|C|C|%</code></li>
+    <li><code>!A</code>One single atom not of type <code>A</code>. Ex: <code>!CL|C|C|%</code></li>
+    <li><code>A+</code>One or more atoms of type <code>A</code>. Ex: <code>CL+|C|C|%</code></li>
+    <li><code>!A+</code>One or more atoms not of type <code>A</code>. Ex: <code>!CL+|C|C|%</code></li>
+    <li><code>A{X}</code> Exactly <code>X</code> atoms of type <code>A</code>. Ex: <code>CL{3}|C|C|%</code></li>
+    <li><code>A{X-Y}</code> From <code>X</code> to <code>Y</code> atoms of type <code>A</code>. Ex: <code>CL{2-3}|C|C|%</code></li>
   </ul>
 </p>
 '''
@@ -100,7 +102,7 @@ class FragmentDihedral(object):
         return other
 
 SQL_SUBSTITUTION_CHARACTERS = ('_', '%')
-SQL_FULL_REGEX_CHARACTERS = ('.', '[', ']', '!', '+', 'L', 'X', 'Y', 'Z')
+SQL_FULL_REGEX_CHARACTERS = ('.', '[', ']', '{', '{', '!', '+', 'J', 'X', 'Y', 'Z')
 has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARACTERS])
 
 def has_regex_pattern(pattern):
@@ -114,7 +116,9 @@ REGEX_FILTERS = (
     ('|', '\\\\|', 'str'),
     ('!([A-Z]{1,2})', '[^(\\1)]', 're'),
     ('([A-Z]{1,2})\\+', '(\\1|,)+', 're'),
-    ('L', '(C|H)', 'str'),
+    ('([A-Z]{1,2})\\{([0-9]+)\\}', lambda x, z: '({0}|,){{{{{1}}}}}'.format(x, 2*int(z)-1), 're_map_groups'), # The MySQL {m,n} needs to be escaped with two curly brackets {{ }} because it will be interpolated in a str.format() later
+    ('([A-Z]{1,2})\\{([0-9]+)\\-([0-9]+)\\}', lambda x, y, z: '({0}|,){{{{{1},{2}}}}}'.format(x, int(y)+1, 2*int(z)-1), 're_map_groups'), # The MySQL {m,n} needs to be escaped with two curly brackets {{ }} because it will be interpolated in a str.format() later
+    ('J', '(C|H)', 'str'),
     ('X', '(F|I|BR|CL)', 'str'),
     ('Y', '(N|O|S)', 'str'),
     ('Z', '[A-Z]{{1,2}}', 'str'), # The MySQL {m,n} needs to be escaped with two curly brackets {{ }} because it will be interpolated in a str.format() later
@@ -128,6 +132,13 @@ def apply_regex_filters(string):
             string = string.replace(pattern, replacement)
         elif substitution_type == 're':
             string = re.sub(pattern, replacement, string)
+        elif substitution_type == 're_map_groups':
+            matches = re.findall(pattern, string)
+            if matches:
+                if len(matches) > 1:
+                    raise Exception('This feature is not supported yet.')
+                mapped_replacement = replacement(*matches[0])
+                string = re.sub(pattern, mapped_replacement, string)
         else:
             raise Exception('Wrong substitution_type')
     return string
@@ -211,7 +222,7 @@ def sorted_components_list(component_list, permutation=()):
     )
 
 if __name__ == "__main__" :
-    for pattern in ('C|N||C|C', 'C,X,B,D|N|N|H,_,C', 'C+|C|C|C+', 'CL,CL,X|C|Z|!I'):
+    for pattern in ('C|N||C|C', 'C,X,B,D|N|N|H,_,C', 'C+|C|C|C+', 'CL,CL,X|C|Z|X{2}', 'CL{2-3}|C|C|BR{3-5}'):
         print pattern
         print sql_pattern_matching_for(pattern)
         print
