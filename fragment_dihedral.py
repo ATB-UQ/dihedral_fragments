@@ -111,18 +111,71 @@ def has_regex_pattern(pattern):
 
 REGEX_START, REGEX_END = ('^', '$')
 
+BACKSLASH = '\\'
+COMMA = ','
+ONE_ATOM = '[A-Z]{1,2}'
+ONE_NUMBER = '[0-9]'
+ANY_NUMBER_OF_ATOMS = '[A-Z,]*'
+
+def REGEX_NOT(pattern):
+    return '[^(' + str(pattern) + ')]'
+
+def REGEX_GROUP(index):
+    return BACKSLASH + str(index)
+
+def REGEX_OR(*args):
+    return '(' + '|'.join(args) + ')'
+
+def REGEX_ESCAPE(pattern):
+    return BACKSLASH + BACKSLASH + str(pattern)
+
+def REGEX_AT_LEAST(pattern, escape_plus=True):
+    return str(pattern) + (BACKSLASH if escape_plus else '') + '+'
+
+def FORMAT_ESCAPED(pattern):
+    return pattern.replace('{', '{{').replace('}', '}}')
+
+def NOT(pattern):
+    return '!' + str(pattern)
+
+def CAPTURE(pattern):
+    return '(' + str(pattern) + ')'
+
+def ESCAPE(pattern):
+    return BACKSLASH + str(pattern)
+
 REGEX_FILTERS = (
     # Order matters here !
-    ('|', '\\\\|', 'str'),
-    ('!([A-Z]{1,2})', '[^(\\1)]', 're'),
-    ('([A-Z]{1,2})\\+', '(\\1|,)+', 're'),
-    ('([A-Z]{1,2})\\{([0-9]+)\\}', lambda x, z: '({0}|,){{{{{1}}}}}'.format(x, 2*int(z)-1), 're_map_groups'), # The MySQL {m,n} needs to be escaped with two curly brackets {{ }} because it will be interpolated in a str.format() later
-    ('([A-Z]{1,2})\\{([0-9]+)\\-([0-9]+)\\}', lambda x, y, z: '({0}|,){{{{{1},{2}}}}}'.format(x, int(y)+1, 2*int(z)-1), 're_map_groups'), # The MySQL {m,n} needs to be escaped with two curly brackets {{ }} because it will be interpolated in a str.format() later
-    ('J', '(C|H)', 'str'),
-    ('X', '(F|I|BR|CL)', 'str'),
-    ('Y', '(N|O|S)', 'str'),
-    ('Z', '[A-Z]{{1,2}}', 'str'), # The MySQL {m,n} needs to be escaped with two curly brackets {{ }} because it will be interpolated in a str.format() later
-    ('%', '[A-Z,]*', 'str'),
+    (
+        '|',
+        REGEX_ESCAPE('|'),
+        'str',
+    ),
+    (
+        NOT(CAPTURE(ONE_ATOM)),
+        REGEX_NOT( REGEX_GROUP(1) ),
+        're',
+    ),
+    (
+        REGEX_AT_LEAST(CAPTURE(ONE_ATOM), escape_plus=True),
+        REGEX_AT_LEAST(REGEX_OR( REGEX_GROUP(1), COMMA), escape_plus=False),
+        're',
+    ),
+    (
+        CAPTURE(ONE_ATOM) + ESCAPE('{') + CAPTURE(ONE_NUMBER) + ESCAPE('}'),
+        lambda x, z: FORMAT_ESCAPED( REGEX_OR(x, COMMA) + '{' + str(2*int(z) - 1) + '}' ),
+        're_map_groups',
+    ),
+    (
+        CAPTURE(ONE_ATOM) + ESCAPE('{') + CAPTURE(ONE_NUMBER) + ESCAPE('-') + CAPTURE(ONE_NUMBER) + ESCAPE('}'),
+        lambda x, y, z: FORMAT_ESCAPED( REGEX_OR(x, COMMA) + '{' + str(int(y) + 1) + ',' + str(2*int(z) - 1) + '}' ),
+        're_map_groups',
+    ),
+    ('J', REGEX_OR('C', 'H'), 'str'),
+    ('X', REGEX_OR('F', 'I', 'BR', 'CL'), 'str'),
+    ('Y', REGEX_OR('N', 'O', 'S'), 'str'),
+    ('Z', FORMAT_ESCAPED('[A-Z]{1,2}'), 'str'),
+    ('%', ANY_NUMBER_OF_ATOMS, 'str'),
 )
 
 def apply_regex_filters(string):
@@ -222,7 +275,7 @@ def sorted_components_list(component_list, permutation=()):
     )
 
 if __name__ == "__main__" :
-    for pattern in ('C|N||C|C', 'C,X,B,D|N|N|H,_,C', 'C+|C|C|C+', 'CL,CL,X|C|Z|X{2}', 'CL{2-3}|C|C|BR{3-5}'):
+    for pattern in ('C|N||C|C', 'C,X,B,D|N|N|H,_,C', 'C+|C|C|C+', 'CL,CL,X|C|Z|X{2}', 'J+|C|S|H', '!J{2-4}|C|C|C', 'CL{2-3}|C|C|BR{3-5}'):
         print pattern
         print sql_pattern_matching_for(pattern)
         print
