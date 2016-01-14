@@ -4,6 +4,8 @@ import sys
 sys.path.insert(0, '../')
 from atb_helpers.iterables import group_by
 from itertools import permutations
+from jinja2 import Template
+import re
 
 CHEMICAL_GROUPS = (
     ('carboxylic acid', '%,O|C|O|H'),
@@ -30,29 +32,6 @@ CHEMICAL_GROUPS = (
     ('triiodo', 'I,I,I|C|Z|%'),
     ('thiol', 'J+|C|S|H'),
 )
-
-SYNTAX_HELP = '''
-<h5>Syntax Help</h5>
-
-<p class='help block'>
-  <span style='font-weight:bold'>Atom categories</span>
-  <ul>
-    <li><code>J</code>Any (single) atom in (C,H)</li>
-    <li><code>Z</code>Any (single) atom</li>
-    <li><code>Y</code>Any (single) atom not (O, N, S)</li>
-    <li><code>X</code>Any (single) halogen (F, Cl, Br, I)</li>
-  </ul>
-
-  <span style='font-weight:bold'>Operators</span>
-  <ul>
-    <li><code>!A</code>One single atom not of type <code>A</code>. Ex: <code>!CL|C|C|%</code></li>
-    <li><code>A+</code>One or more atoms of type <code>A</code>. Ex: <code>CL+|C|C|%</code></li>
-    <li><code>!A+</code>One or more atoms not of type <code>A</code>. Ex: <code>!CL+|C|C|%</code></li>
-    <li><code>A{X}</code> Exactly <code>X</code> atoms of type <code>A</code>. Ex: <code>CL{3}|C|C|%</code></li>
-    <li><code>A{X-Y}</code> From <code>X</code> to <code>Y</code> atoms of type <code>A</code>. Ex: <code>CL{2-3}|C|C|%</code></li>
-  </ul>
-</p>
-'''
 
 class FragmentDihedral(object):
 
@@ -102,7 +81,7 @@ class FragmentDihedral(object):
         return other
 
 SQL_SUBSTITUTION_CHARACTERS = ('_', '%')
-SQL_FULL_REGEX_CHARACTERS = ('.', '[', ']', '{', '{', '!', '+', 'J', 'X', 'Y', 'Z')
+SQL_FULL_REGEX_CHARACTERS = ('{', '}', '!', '+', '-')
 has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARACTERS])
 
 def has_regex_pattern(pattern):
@@ -144,13 +123,7 @@ def CAPTURE(pattern):
 def ESCAPE(pattern):
     return BACKSLASH + str(pattern)
 
-REGEX_FILTERS = (
-    # Order matters here !
-    (
-        '|',
-        REGEX_ESCAPE('|'),
-        'str',
-    ),
+OPERATORS = (
     (
         NOT(CAPTURE(ONE_ATOM)),
         REGEX_NOT( REGEX_GROUP(1) ),
@@ -171,6 +144,16 @@ REGEX_FILTERS = (
         lambda x, y, z: FORMAT_ESCAPED( REGEX_OR(x, COMMA) + '{' + str(int(y) + 1) + ',' + str(2*int(z) - 1) + '}' ),
         're_map_groups',
     ),
+)
+
+REGEX_FILTERS = (
+    # Order matters here !
+    (
+        '|',
+        REGEX_ESCAPE('|'),
+        'str',
+    ),
+) + OPERATORS + (
     ('%', ANY_NUMBER_OF_ATOMS, 'str'),
 )
 
@@ -181,15 +164,33 @@ ATOM_CATEGORIES = {
     'Z': FORMAT_ESCAPED(ONE_ATOM),
 }
 
-def substitute_atom(atom):
-    if atom in ATOM_CATEGORIES:
-        return ATOM_CATEGORIES[atom]
+OPERATOR_STRIPPER = (
+    lambda x: re.find('')
+)
+
+def substitute_atom_pattern(atom_pattern):
+    if atom_pattern in ATOM_CATEGORIES:
+        return ATOM_CATEGORIES[atom_pattern]
     else:
-        return atom
+        # Maybe atom pattern is embedded in an operator ?
+        return atom_pattern
+
+def substitute_atoms_in_pattern(pattern):
+    BAR = REGEX_ESCAPE('|')
+    return BAR.join(
+        [
+            ','.join([ substitute_atom_pattern(atom) for atom in re.split('[A-Z],[A-Z]', group)])
+            for group in pattern.split(BAR)
+        ]
+    )
+
+DEBUG = False
 
 def apply_regex_filters(string):
-    import re
     for (pattern, replacement, substitution_type) in REGEX_FILTERS:
+        if DEBUG:
+            old_string = string
+
         if substitution_type == 'str':
             string = string.replace(pattern, replacement)
         elif substitution_type == 're':
@@ -203,7 +204,10 @@ def apply_regex_filters(string):
                 string = re.sub(pattern, mapped_replacement, string)
         else:
             raise Exception('Wrong substitution_type')
-    return string
+
+        if DEBUG:
+            print [pattern, replacement, old_string], string
+    return substitute_atoms_in_pattern(string)
 
 def escaped_special_regex_characters(patterns):
     return [ (REGEX_START + apply_regex_filters(pattern)  + REGEX_END) for pattern in patterns]
@@ -261,12 +265,10 @@ def correct_pattern(pattern, should_reverse=False, left_permutation=(), right_pe
 def sorted_components(component_index, component, left_permutation=(), right_permutation=()):
     if component_index in (0,3):
         return ','.join(
-            [   substitute_atom(atom)
-                for atom in sorted_components_list(
-                    component.split(','),
-                    permutation=left_permutation if component_index == 0 else right_permutation,
-                )
-            ]
+            sorted_components_list(
+                component.split(','),
+                permutation=left_permutation if component_index == 0 else right_permutation,
+            )
         )
     else:
         return component
@@ -285,8 +287,34 @@ def sorted_components_list(component_list, permutation=()):
         key=lambda x: sorting_dict[x],
     )
 
+SYNTAX_HELP = Template('''
+<h5>Syntax Help</h5>
+
+<p class='help block'>
+  <span style='font-weight:bold'>Atom categories</span>
+  <ul>
+    {% for (code, matches) in ATOM_CATEGORIES %}
+      <li><code>{{ code }}</code>Any (single) atom in {{ matches }}</li>
+    {% endfor %}
+  </ul>
+
+  <span style='font-weight:bold'>Operators</span>
+  <ul>
+    <li><code>!A</code>One single atom not of type <code>A</code>. Ex: <code>!CL|C|C|%</code></li>
+    <li><code>A+</code>One or more atoms of type <code>A</code>. Ex: <code>CL+|C|C|%</code></li>
+    <li><code>!A+</code>One or more atoms not of type <code>A</code>. Ex: <code>!CL+|C|C|%</code></li>
+    <li><code>A{X}</code> Exactly <code>X</code> atoms of type <code>A</code>. Ex: <code>CL{3}|C|C|%</code></li>
+    <li><code>A{X-Y}</code> From <code>X</code> to <code>Y</code> atoms of type <code>A</code>. Ex: <code>CL{2-3}|C|C|%</code></li>
+  </ul>
+</p>
+''').render(
+    ATOM_CATEGORIES=ATOM_CATEGORIES.items(),
+)
+
+
 if __name__ == "__main__" :
-    for pattern in ('X,X|C|C|X,X', 'CX|N|C|CX', 'C,X,B,D|N|N|H,_,C', 'C+|C|C|C+', 'CL,CL,X|C|Z|X{2}', 'J+|C|S|H', '!J{2-4}|C|C|C', 'CL{2-3}|C|C|BR{3-5}'):
+
+    for pattern in ('X,X|C|C|X,X', 'CX|N|C|CX', 'C,X,B,D|N|N|H,_,C', 'C+|CC|C|C+', 'CL,CL,X|C|Z|CX{2}', 'J+|C|S|H', '!J{2-4}|C|C|C', 'CL{2-3}|C|C|BR{3-5}'):
         print pattern
         print sql_pattern_matching_for(pattern)
         print
