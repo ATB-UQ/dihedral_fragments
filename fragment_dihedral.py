@@ -92,7 +92,8 @@ REGEX_START, REGEX_END = ('^', '$')
 
 BACKSLASH = '\\'
 COMMA = ','
-ONE_ATOM = '[A-Z]{1,2}'
+ONE_LETTER = '[A-Z]'
+ONE_ATOM = ONE_LETTER + '{1,2}'
 ONE_NUMBER = '[0-9]'
 ANY_NUMBER_OF_ATOMS = '[A-Z,]*'
 
@@ -179,10 +180,30 @@ def substitute_atoms_in_pattern(pattern):
     BAR = REGEX_ESCAPE('|')
     return BAR.join(
         [
-            ','.join([ substitute_atom_pattern(atom) for atom in re.split('[A-Z],[A-Z]', group)])
+            ','.join([ substitute_atom_pattern(atom) for atom in split_on_atoms(group)])
             for group in pattern.split(BAR)
         ]
     )
+
+def split_on_atoms(groups):
+    atom_patterns = groups.split(',')
+    atoms = []
+    acc = ''
+
+    def discharge_acc():
+        if acc is not '':
+            atoms.append(acc)
+
+    for atom_pattern in atom_patterns:
+        if not (re.search(ONE_LETTER, atom_pattern[0]) or re.search(ONE_LETTER, atom_pattern[-1])):
+            acc += atom_pattern
+        else:
+            discharge_acc()
+            atoms.append(atom_pattern)
+            acc = ''
+    discharge_acc()
+
+    return atoms
 
 DEBUG = False
 
