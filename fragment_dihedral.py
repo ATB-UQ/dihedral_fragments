@@ -171,12 +171,21 @@ REGEX_FILTERS = (
         lambda x, y, z: FORMAT_ESCAPED( REGEX_OR(x, COMMA) + '{' + str(int(y) + 1) + ',' + str(2*int(z) - 1) + '}' ),
         're_map_groups',
     ),
-    ('J', REGEX_OR('C', 'H'), 'str'),
-    ('X', REGEX_OR('F', 'I', 'BR', 'CL'), 'str'),
-    ('Y', REGEX_OR('N', 'O', 'S'), 'str'),
-    ('Z', FORMAT_ESCAPED('[A-Z]{1,2}'), 'str'),
     ('%', ANY_NUMBER_OF_ATOMS, 'str'),
 )
+
+ATOM_CATEGORIES = {
+    'J': REGEX_OR('C', 'H'),
+    'X': REGEX_OR('F', 'I', 'BR', 'CL'),
+    'Y': REGEX_OR('N', 'O', 'S'),
+    'Z': FORMAT_ESCAPED(ONE_ATOM),
+}
+
+def substitute_atom(atom):
+    if atom in ATOM_CATEGORIES:
+        return ATOM_CATEGORIES[atom]
+    else:
+        return atom
 
 def apply_regex_filters(string):
     import re
@@ -252,10 +261,12 @@ def correct_pattern(pattern, should_reverse=False, left_permutation=(), right_pe
 def sorted_components(component_index, component, left_permutation=(), right_permutation=()):
     if component_index in (0,3):
         return ','.join(
-            sorted_components_list(
-                component.split(','),
-                permutation=left_permutation if component_index == 0 else right_permutation,
-            )
+            [   substitute_atom(atom)
+                for atom in sorted_components_list(
+                    component.split(','),
+                    permutation=left_permutation if component_index == 0 else right_permutation,
+                )
+            ]
         )
     else:
         return component
@@ -275,7 +286,7 @@ def sorted_components_list(component_list, permutation=()):
     )
 
 if __name__ == "__main__" :
-    for pattern in ('C|N||C|C', 'C,X,B,D|N|N|H,_,C', 'C+|C|C|C+', 'CL,CL,X|C|Z|X{2}', 'J+|C|S|H', '!J{2-4}|C|C|C', 'CL{2-3}|C|C|BR{3-5}'):
+    for pattern in ('X,X|C|C|X,X', 'CX|N|C|CX', 'C,X,B,D|N|N|H,_,C', 'C+|C|C|C+', 'CL,CL,X|C|Z|X{2}', 'J+|C|S|H', '!J{2-4}|C|C|C', 'CL{2-3}|C|C|BR{3-5}'):
         print pattern
         print sql_pattern_matching_for(pattern)
         print
