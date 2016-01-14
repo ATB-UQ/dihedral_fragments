@@ -170,11 +170,13 @@ OPERATOR_STRIPPER = (
 )
 
 def substitute_atom_pattern(atom_pattern):
-    if atom_pattern in ATOM_CATEGORIES:
-        return ATOM_CATEGORIES[atom_pattern]
-    else:
-        # Maybe atom pattern is embedded in an operator ?
-        return atom_pattern
+    def cleaned_atom_pattern(x):
+        return re.sub('[\[\]\(\)\^\|\{\}\+\-0-9,]', '', x) # This line prevents atoms for ever having numbers in their name
+
+    for cleaned_atom_pattern in (atom_pattern, cleaned_atom_pattern(atom_pattern)):
+        if cleaned_atom_pattern in ATOM_CATEGORIES:
+            return re.sub(cleaned_atom_pattern, ATOM_CATEGORIES[cleaned_atom_pattern], atom_pattern)
+    return atom_pattern
 
 def substitute_atoms_in_pattern(pattern):
     BAR = REGEX_ESCAPE('|')
@@ -187,20 +189,24 @@ def substitute_atoms_in_pattern(pattern):
 
 def split_on_atoms(groups):
     atom_patterns = groups.split(',')
+
+    if len(atom_patterns):
+        return atom_patterns
+
     atoms = []
-    acc = ''
+    acc = []
 
     def discharge_acc():
-        if acc is not '':
-            atoms.append(acc)
+        if acc is not []:
+            atoms.append(','.join(acc))
 
     for atom_pattern in atom_patterns:
         if not (re.search(ONE_LETTER, atom_pattern[0]) or re.search(ONE_LETTER, atom_pattern[-1])):
-            acc += atom_pattern
+            acc.append(atom_pattern)
         else:
             discharge_acc()
+            acc = []
             atoms.append(atom_pattern)
-            acc = ''
     discharge_acc()
 
     return atoms
@@ -335,7 +341,7 @@ SYNTAX_HELP = Template('''
 
 if __name__ == "__main__" :
 
-    for pattern in ('X,X|C|C|X,X', 'CX|N|C|CX', 'C,X,B,D|N|N|H,_,C', 'C+|CC|C|C+', 'CL,CL,X|C|Z|CX{2}', 'J+|C|S|H', '!J{2-4}|C|C|C', 'CL{2-3}|C|C|BR{3-5}'):
+    for pattern in ('X,X|C|C|X,X', 'CX|N|C|CX', 'C,X,B,D|N|N|H,_,C', 'C+|CC|C|C+', 'CL,CL,X{2}|C|Z|CX', 'J+|C|S|H', '!J{2-4}|C|C|C', 'CL{2-3}|C|C|BR{3-5}'):
         print pattern
         print sql_pattern_matching_for(pattern)
         print
