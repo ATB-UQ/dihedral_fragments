@@ -125,22 +125,22 @@ def ESCAPE(pattern):
     return BACKSLASH + str(pattern)
 
 OPERATORS = (
-    (
+    (   # !A
         NOT(CAPTURE(ONE_ATOM)),
         REGEX_NOT( REGEX_GROUP(1) ),
         're',
     ),
-    (
+    (   # A+
         REGEX_AT_LEAST(CAPTURE(ONE_ATOM), escape_plus=True),
         REGEX_AT_LEAST(REGEX_OR( REGEX_GROUP(1), COMMA), escape_plus=False),
         're',
     ),
-    (
+    (   # A{X}
         CAPTURE(ONE_ATOM) + ESCAPE('{') + CAPTURE(ONE_NUMBER) + ESCAPE('}'),
         lambda x, z: FORMAT_ESCAPED( REGEX_OR(x, COMMA) + '{' + str(2*int(z) - 1) + '}' ),
         're_map_groups',
     ),
-    (
+    (   # A{X,Y}
         CAPTURE(ONE_ATOM) + ESCAPE('{') + CAPTURE(ONE_NUMBER) + ESCAPE('-') + CAPTURE(ONE_NUMBER) + ESCAPE('}'),
         lambda x, y, z: FORMAT_ESCAPED( REGEX_OR(x, COMMA) + '{' + str(int(y) + 1) + ',' + str(2*int(z) - 1) + '}' ),
         're_map_groups',
@@ -211,11 +211,9 @@ def split_on_atoms(groups):
 
     return atoms
 
-DEBUG = False
-
-def apply_regex_filters(string):
+def apply_regex_filters(string, debug=False):
     for (pattern, replacement, substitution_type) in REGEX_FILTERS:
-        if DEBUG:
+        if debug:
             old_string = string
 
         if substitution_type == 'str':
@@ -232,7 +230,7 @@ def apply_regex_filters(string):
         else:
             raise Exception('Wrong substitution_type')
 
-        if DEBUG:
+        if debug:
             print [pattern, replacement, old_string], string
     return substitute_atoms_in_pattern(string)
 
@@ -341,7 +339,7 @@ SYNTAX_HELP = Template('''
 
 if __name__ == "__main__" :
 
-    for pattern in ('X,X|C|C|X,X', 'CX|N|C|CX', 'C,X,B,D|N|N|H,_,C', 'C+|CC|C|C+', 'CL,CL,X{2}|C|Z|CX', 'J+|C|S|H', '!J{2-4}|C|C|C', 'CL{2-3}|C|C|BR{3-5}'):
+    for pattern in ('X,X|C|C|X,X', '!X+|N|C|CX', 'C,X,B,D|N|N|H,_,C', 'C+|CC|C|C+', 'CL,CL,X{2}|C|Z|CX', 'J+|C|S|H', '!J{2-4}|C|C|C', 'X{2},I|C|Z|%', '!X{2},I|C|Z|%', 'CL{2-3}|C|C|BR{3-5}'):
         print pattern
         print sql_pattern_matching_for(pattern)
         print
