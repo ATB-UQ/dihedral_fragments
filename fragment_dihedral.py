@@ -8,16 +8,12 @@ from jinja2 import Template
 import re
 
 CHEMICAL_GROUPS = (
-    ('carboxylic acid', '%,O|C|O|H'),
-    ('ester', '%,O|C|O|C'),
-    ('alkyne', 'Z|C|C|Z'),
-    ('alkene', 'Z,Z|C|C|Z,Z'),
-    ('alcool I', 'C,H,H|C|O|H'),
-    ('alcool II', 'C,C,H|C|O|H'),
-    ('alcool III', 'C,C,C|C|O|H'),
-    ('amine I', '%|C|N|H,H'),
-    ('amine II', '%|C|N|C,H'),
-    ('amine III', '%|C|N|C,C'),
+    # Hydrocarbons
+    ('alkane', 'J,J,J|C|C|J,J,J'),
+    ('alkane', 'J,J|C|C|J,J'),
+    ('alkyne', 'J|C|C|J'),
+
+    # Groups containing halogens
     ('monofluoro', 'F,!X,!X|C|Z|%'),
     ('difluoro', 'F,F,!X|C|Z|%'),
     ('trifluoro', 'F,F,F|C|Z|%'),
@@ -30,7 +26,58 @@ CHEMICAL_GROUPS = (
     ('iodo', 'I,!X,!X|C|Z|%'),
     ('diiodo', 'I,I,!X|C|Z|%'),
     ('triiodo', 'I,I,I|C|Z|%'),
+
+    # Groups containing oxygen
+    ('alcohol I', 'C,H,H|C|O|H'),
+    ('alcohol II', 'C,C,H|C|O|H'),
+    ('alcohol III', 'C,C,C|C|O|H'),
+    ('ketone', '%|C|C|O,C'),
+    ('aldehyde', '%|C|C|O,H'),
+    ('acyl halide', '%|C|C|O,X'),
+    ('carboxylic acid', '%,O|C|O|H'),
+    ('ester', '%,O|C|O|C'),
+
+    # Groups containing nitrogen
+    ('carboxamide', ''),
+    ('amine I', '%|C|N|H,H'),
+    ('amine II', '%|C|N|C,H'),
+    ('amine III', '%|C|N|C,C'),
+    ('ammonium ion', '%|J|N|J,J,J'),
+    ('ketimine I', 'H|N|C|C,C'),
+    ('ketimine II', 'C|N|C|C,C'),
+    ('aldimine I', 'H|N|C|C,H'),
+    ('aldimine II', 'C|N|C|C,H'),
+    ('imide', 'N/A'),
+    ('azide', 'N|N|N|C'),
+    ('azo', 'C|N|N|C'),
+    ('cyanate', 'C|O|C|N'),
+    ('isocyanate', 'C|N|C|O'),
+    ('nitrate', 'C|O|N|O,O'),
+    ('nitrile', 'N|C|C|%'),
+    ('isonitrile', 'C|N|C|%'),
+    ('nitro', 'C|N|O,O'),
+    ('nitroso', '%|C|N|O'),
+    ('pyridyl', ''),
+
+    # Groups containing sulfur
     ('thiol', 'J+|C|S|H'),
+    ('sulfide', 'J+|C|S|C'),
+    ('disulfide', 'C|S|S|C'),
+    ('sulfinyl', '%|C|S|C,O'),
+    ('sulfonyl', '%|C|S|C,O,O'),
+    ('sulfino', 'C,O|S|O|H'),
+    ('sulfo', 'C,O,O|S|O|H'),
+    ('thiocyanate', 'C|S|C|N'),
+    ('isothiocyanate', 'C|N|C|S'),
+    ('carbonothioyl', '%|J|C|S,J'),
+
+    # Groups containing phosphorus
+    ('phosphino', '%|C|P|C,C'),
+    ('phosphono', '%|C|P|O,O,O'),
+    ('phosphate', 'C|O|P|O,O,O'),
+
+    # Groups containing boron
+    ('borono', '%|C|B|O,O'),
 )
 
 class FragmentDihedral(object):
@@ -79,10 +126,6 @@ class FragmentDihedral(object):
             other.atom_2, other.atom_3 = other.atom_3, other.atom_2
             other.neighbours_1, other.neighbours_4 = other.neighbours_4, other.neighbours_1
         return other
-
-SQL_SUBSTITUTION_CHARACTERS = ('_', '%')
-SQL_FULL_REGEX_CHARACTERS = ('{', '}', '!', '+', '-')
-has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARACTERS])
 
 def has_regex_pattern(pattern):
     assert ('$' not in pattern) and ('^' not in pattern)
@@ -158,6 +201,10 @@ REGEX_FILTERS = (
     ('%', ANY_NUMBER_OF_ATOMS, 'str'),
 )
 
+OPERATOR_STRIPPER = (
+    lambda x: re.find('')
+)
+
 ATOM_CATEGORIES = {
     'J': REGEX_OR('C', 'H'),
     'X': REGEX_OR('F', 'I', 'BR', 'CL'),
@@ -165,9 +212,10 @@ ATOM_CATEGORIES = {
     'Z': FORMAT_ESCAPED(ONE_ATOM),
 }
 
-OPERATOR_STRIPPER = (
-    lambda x: re.find('')
-)
+SQL_SUBSTITUTION_CHARACTERS = ('_', '%')
+SQL_FULL_REGEX_CHARACTERS = ('{', '}', '!', '+', '-') + tuple(ATOM_CATEGORIES.keys())
+has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARACTERS])
+
 
 def substitute_atom_pattern(atom_pattern):
     def cleaned_atom_pattern(x):
@@ -336,9 +384,7 @@ SYNTAX_HELP = Template('''
     ATOM_CATEGORIES=ATOM_CATEGORIES.items(),
 )
 
-
 if __name__ == "__main__" :
-
     for pattern in ('X,X|C|C|X,X', '!X+|N|C|CX', 'C,X,B,D|N|N|H,_,C', 'C+|CC|C|C+', 'CL,CL,X{2}|C|Z|CX', 'J+|C|S|H', '!J{2-4}|C|C|C', 'X{2},I|C|Z|%', '!X{2},I|C|Z|%', 'CL{2-3}|C|C|BR{3-5}'):
         print pattern
         print sql_pattern_matching_for(pattern)
