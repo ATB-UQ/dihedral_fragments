@@ -80,6 +80,22 @@ CHEMICAL_GROUPS = (
     ('borono', '%|C|B|O,O'),
 )
 
+NEIGHBOUR_SEPARATOR = ','
+
+def join_neighbours(neighbours):
+    return NEIGHBOUR_SEPARATOR.join(neighbours)
+
+def split_neighbour_str(neighbour_str):
+    return neighbour_str.split(NEIGHBOUR_SEPARATOR)
+
+GROUP_SEPARATOR = '|'
+
+def join_groups(groups):
+    return GROUP_SEPARATOR.join(groups)
+
+def split_group_str(group_str):
+    return group_str.split(GROUP_SEPARATOR)
+
 class FragmentDihedral(object):
     HIGHEST_ATOMS_FIRST = dict(
         key=lambda x: ELEMENT_NUMBERS[x],
@@ -89,11 +105,11 @@ class FragmentDihedral(object):
     def __init__(self, dihedral_string=None, atom_list=None):
 
         if dihedral_string:
-            splitted_string = dihedral_string.split("|")
-            self.neighbours_1 = [atom.upper() for atom in splitted_string[0].split(',')]
+            splitted_string = split_group_str(dihedral_string)
+            self.neighbours_1 = [atom.upper() for atom in split_neighbour_str(splitted_string[0])]
             self.atom_2 = splitted_string[1].upper()
             self.atom_3 = splitted_string[2].upper()
-            self.neighbours_4 = [atom.upper() for atom in splitted_string[3].split(',')]
+            self.neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[3])]
         else:
             self.neighbours_1, self.atom_2, self.atom_3, self.neighbours_4= atom_list
 
@@ -106,10 +122,10 @@ class FragmentDihedral(object):
 
     def __str__(self):
         return "{neighbours_1}|{atom_2}|{atom_3}|{neighbours_4}".format(
-            neighbours_1=','.join(self.neighbours_1),
+            neighbours_1=join_neighbours(self.neighbours_1),
             atom_2=self.atom_2,
             atom_3=self.atom_3,
-            neighbours_4=','.join(self.neighbours_4),
+            neighbours_4=join_neighbours(self.neighbours_4),
         )
 
     def __eq__(self, other):
@@ -254,13 +270,13 @@ def substitute_atoms_in_pattern(pattern):
     BAR = REGEX_ESCAPE('|')
     return BAR.join(
         [
-            ','.join([ substitute_atom_pattern(atom) for atom in split_on_atoms(group)])
+            join_neighbours([ substitute_atom_pattern(atom) for atom in split_on_atoms(group)])
             for group in pattern.split(BAR)
         ]
     )
 
 def split_on_atoms(groups):
-    atom_patterns = groups.split(',')
+    atom_patterns = split_neighbour_str(groups)
 
     if len(atom_patterns):
         return atom_patterns
@@ -270,7 +286,7 @@ def split_on_atoms(groups):
 
     def discharge_acc():
         if acc is not []:
-            atoms.append(','.join(acc))
+            atoms.append(join_neighbours(acc))
 
     for atom_pattern in atom_patterns:
         if not (re.search(ONE_LETTER, atom_pattern[0]) or re.search(ONE_LETTER, atom_pattern[-1])):
@@ -326,12 +342,12 @@ def sql_pattern_matching_for(pattern):
     else:
         use_full_regex = has_regex_pattern(pattern)
 
-        components = pattern.split('|')
+        components = split_group_str(pattern)
         assert len(components) == 4
         need_to_reverse_inner_atoms = (components[1] != components[2])
 
-        left_permutations = permutations(range(len(group_by(components[0].split(','), key=lambda x:x))))
-        right_permutation = permutations(range(len(group_by(components[3].split(','), key=lambda x:x))))
+        left_permutations = permutations(range(len(group_by(split_neighbour_str(components[0]), key=lambda x:x))))
+        right_permutation = permutations(range(len(group_by(split_neighbour_str(components[3]), key=lambda x:x))))
 
         patterns = [
             correct_pattern(pattern, should_reverse=should_reverse, left_permutation=left_permutation, right_permutation=right_permutation)
@@ -353,17 +369,17 @@ def sql_pattern_matching_for(pattern):
         )
 
 def correct_pattern(pattern, should_reverse=False, left_permutation=(), right_permutation=()):
-    return '|'.join(
+    return join_groups(
         (reversed if should_reverse else lambda x:x)(
-            [sorted_components(i, x, left_permutation=left_permutation, right_permutation=right_permutation) for (i, x) in enumerate(pattern.split('|'))]
+            [sorted_components(i, x, left_permutation=left_permutation, right_permutation=right_permutation) for (i, x) in enumerate(split_group_str(pattern))]
         )
     )
 
 def sorted_components(component_index, component, left_permutation=(), right_permutation=()):
     if component_index in (0,3):
-        return ','.join(
+        return join_neighbours(
             sorted_components_list(
-                component.split(','),
+                split_neighbour_str(component),
                 permutation=left_permutation if component_index == 0 else right_permutation,
             )
         )
@@ -415,6 +431,7 @@ if __name__ == "__main__" :
         print s
         print 'Canonical: '
         print FragmentDihedral(s)
+    exit()
 
     for pattern in ('X,X|C|C|X,X', '!X+|N|C|CX', 'C,X,B,D|N|N|H,_,C', 'C+|CC|C|C+', 'CL,CL,X{2}|C|Z|CX', 'J+|C|S|H', '!J{2-4}|C|C|C', 'X{2},I|C|Z|%', '!X{2},I|C|Z|%', 'CL{2-3}|C|C|BR{3-5}'):
         print pattern
