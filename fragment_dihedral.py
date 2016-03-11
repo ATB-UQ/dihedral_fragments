@@ -1,11 +1,11 @@
 from copy import deepcopy, copy
 from itertools import product
-import sys
-sys.path.insert(0, '../')
-from atb_helpers.iterables import group_by
 from itertools import permutations
 from jinja2 import Template
 import re
+
+from atb_helpers.iterables import group_by
+from pipeline.pipelineHelperFunctions import ELEMENT_NUMBERS
 
 CHEMICAL_GROUPS = (
     # Hydrocarbons
