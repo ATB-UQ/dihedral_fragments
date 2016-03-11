@@ -148,14 +148,17 @@ class FragmentDihedral(object):
             should_reverse = True
         elif ELEMENT_NUMBERS[other.atom_3] == ELEMENT_NUMBERS[other.atom_2]:
             should_reverse = False
-            # If identical central atoms, try to resolve ambiguity one neighbour at a time
-            for (neighbour_1, neighbour_4) in zip(self.neighbours_1, self.neighbours_4):
-                if ELEMENT_NUMBERS[neighbour_4] > ELEMENT_NUMBERS[neighbour_1]:
-                    should_reverse = True
-                    break
-            # Finally, if the one-to-one comparison failed, put the size zith the most substituents on the left
+
             if len(self.neighbours_4) > len(self.neighbours_1):
                 should_reverse = True
+            elif len(self.neighbours_4) == len(self.neighbours_1):
+                # If identical central atoms, and same number of neighbours on both ends, try to resolve ambiguity one neighbour at a time
+                for (neighbour_1, neighbour_4) in zip(self.neighbours_1, self.neighbours_4):
+                    if ELEMENT_NUMBERS[neighbour_4] > ELEMENT_NUMBERS[neighbour_1]:
+                        should_reverse = True
+                        break
+            else:
+                should_reverse = False
         else:
             should_reverse = False
 
@@ -424,27 +427,56 @@ SYNTAX_HELP = Template('''
     ATOM_CATEGORIES=ATOM_CATEGORIES.items(),
 )
 
-if __name__ == "__main__" :
-    test_strings = ('H,C,H|C|CL|C,H,C', 'H,C,H|CL|CL|C,H,C', 'H,C,H|CL|CL|C,H,C,H', 'H,C,H|CL|CL|C,H,H,H')
-    for s in test_strings:
-        print 'Non canonical: '
-        print s
-        print 'Canonical: '
-        print FragmentDihedral(s)
-    exit()
+def test_canonical_rep():
+    test_cases = (
+        ('H,C,H|C|CL|C,H,C', 'C,C,H|CL|C|C,H,H'),
+        ('H,C,H|CL|CL|C,H,C', 'C,C,H|CL|CL|C,H,H'),
+        ('H,C,H|CL|CL|C,H,C,H', 'C,C,H,H|CL|CL|C,H,H'),
+        ('O|C|C|N,H', 'N,H|C|C|O'),
+        ('H,C,H|CL|CL|C,H,H,H', 'C,H,H,H|CL|CL|C,H,H'),
+    )
 
-    for pattern in ('X,X|C|C|X,X', '!X+|N|C|CX', 'C,X,B,D|N|N|H,_,C', 'C+|CC|C|C+', 'CL,CL,X{2}|C|Z|CX', 'J+|C|S|H', '!J{2-4}|C|C|C', 'X{2},I|C|Z|%', '!X{2},I|C|Z|%', 'CL{2-3}|C|C|BR{3-5}'):
+    for (dihedral_string, solution) in test_cases:
+        answer = str(FragmentDihedral(dihedral_string))
+        assert answer == solution, '"{0}" != "{1}"'.format(answer, solution)
+
+        cyclic_answer = str(FragmentDihedral(answer))
+        assert cyclic_answer == answer, '"{0}" != "{1}"'.format(cyclic_answer, answer)
+
+def test_patterns():
+    test_cases = (
+        'X,X|C|C|X,X',
+        '!X+|N|C|CX',
+        'C,X,B,D|N|N|H,_,C',
+        'C+|CC|C|C+',
+        'CL,CL,X{2}|C|Z|CX',
+        'J+|C|S|H',
+        '!J{2-4}|C|C|C',
+        'X{2},I|C|Z|%',
+        '!X{2},I|C|Z|%',
+        'CL{2-3}|C|C|BR{3-5}',
+    )
+
+    for pattern in test_cases:
         print pattern
         print sql_pattern_matching_for(pattern)
         print
 
-    dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
-    print dihedral_1
-    dihedral_2 = FragmentDihedral("C,H,H|C|C|C,C,H")
-    print dihedral_2
-    print dihedral_1 == dihedral_2
-    dihedral_3 = FragmentDihedral(atom_list=(['H', 'H'], 'C', 'C', ['Cl', 'Cl']))
-    print dihedral_3
-    print dihedral_3 == dihedral_2
+
+if __name__ == "__main__" :
+    test_canonical_rep()
+
+    if False:
+        test_patterns()
+
+    if False:
+        dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
+        print dihedral_1
+        dihedral_2 = FragmentDihedral("C,H,H|C|C|C,C,H")
+        print dihedral_2
+        print dihedral_1 == dihedral_2
+        dihedral_3 = FragmentDihedral(atom_list=(['H', 'H'], 'C', 'C', ['Cl', 'Cl']))
+        print dihedral_3
+        print dihedral_3 == dihedral_2
 
 
