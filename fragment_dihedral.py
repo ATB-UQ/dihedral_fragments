@@ -81,6 +81,10 @@ CHEMICAL_GROUPS = (
 )
 
 class FragmentDihedral(object):
+    HIGHEST_ATOMS_FIRST = dict(
+        key=lambda x: ELEMENT_NUMBERS[x],
+        reverse=True,
+    )
 
     def __init__(self, dihedral_string=None, atom_list=None):
 
@@ -117,15 +121,35 @@ class FragmentDihedral(object):
 
     def __canonical_rep__(self):
         other = copy(self)
+
         # Order each neighbour list by alphabetical order
         # WARNING: Keep in mind that maintaining order will be necessary for maintaining sterochemistry information
-        other.neighbours_1.sort()
-        other.neighbours_4.sort()
-        # Compare the two neighbour list and put the first in lexical order on the leftmost side
-        if [other.atom_2] + other.neighbours_1 >=  [other.atom_3] + other.neighbours_4:
-            other.atom_2, other.atom_3 = other.atom_3, other.atom_2
-            other.neighbours_1, other.neighbours_4 = other.neighbours_4, other.neighbours_1
+        other.neighbours_1.sort(**FragmentDihedral.HIGHEST_ATOMS_FIRST)
+        other.neighbours_4.sort(**FragmentDihedral.HIGHEST_ATOMS_FIRST)
+
+        # Compare the two central atoms and put the heavier one on the left
+        if ELEMENT_NUMBERS[other.atom_3] >  ELEMENT_NUMBERS[other.atom_2]:
+            should_reverse = True
+        elif ELEMENT_NUMBERS[other.atom_3] == ELEMENT_NUMBERS[other.atom_2]:
+            should_reverse = False
+            # If identical central atoms, try to resolve ambiguity one neighbour at a time
+            for (neighbour_1, neighbour_4) in zip(self.neighbours_1, self.neighbours_4):
+                if ELEMENT_NUMBERS[neighbour_4] > ELEMENT_NUMBERS[neighbour_1]:
+                    should_reverse = True
+                    break
+            # Finally, if the one-to-one comparison failed, put the size zith the most substituents on the left
+            if len(self.neighbours_4) > len(self.neighbours_1):
+                should_reverse = True
+        else:
+            should_reverse = False
+
+        if should_reverse:
+            other.reverse_dihedral()
         return other
+
+    def reverse_dihedral(self):
+        self.atom_2, self.atom_3 = self.atom_3, self.atom_2
+        self.neighbours_1, self.neighbours_4 = self.neighbours_4, self.neighbours_1
 
 def has_regex_pattern(pattern):
     assert ('$' not in pattern) and ('^' not in pattern)
@@ -385,11 +409,17 @@ SYNTAX_HELP = Template('''
 )
 
 if __name__ == "__main__" :
+    test_strings = ('H,C,H|C|CL|C,H,C', 'H,C,H|CL|CL|C,H,C', 'H,C,H|CL|CL|C,H,C,H', 'H,C,H|CL|CL|C,H,H,H')
+    for s in test_strings:
+        print 'Non canonical: '
+        print s
+        print 'Canonical: '
+        print FragmentDihedral(s)
+
     for pattern in ('X,X|C|C|X,X', '!X+|N|C|CX', 'C,X,B,D|N|N|H,_,C', 'C+|CC|C|C+', 'CL,CL,X{2}|C|Z|CX', 'J+|C|S|H', '!J{2-4}|C|C|C', 'X{2},I|C|Z|%', '!X{2},I|C|Z|%', 'CL{2-3}|C|C|BR{3-5}'):
         print pattern
         print sql_pattern_matching_for(pattern)
         print
-    exit()
 
     dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
     print dihedral_1
