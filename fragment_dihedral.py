@@ -157,6 +157,10 @@ class FragmentDihedral(object):
                     if ELEMENT_NUMBERS[neighbour_4] > ELEMENT_NUMBERS[neighbour_1]:
                         should_reverse = True
                         break
+                    elif ELEMENT_NUMBERS[neighbour_4] == ELEMENT_NUMBERS[neighbour_1]:
+                        pass
+                    else:
+                        break
             else:
                 should_reverse = False
         else:
@@ -434,6 +438,7 @@ def test_canonical_rep():
         ('H,C,H|CL|CL|C,H,C,H', 'C,C,H,H|CL|CL|C,H,H'),
         ('O|C|C|N,H', 'N,H|C|C|O'),
         ('H,C,H|CL|CL|C,H,H,H', 'C,H,H,H|CL|CL|C,H,H'),
+        ('F,C|C|C|O,N', 'F,C|C|C|O,N'),
     )
 
     for (dihedral_string, solution) in test_cases:
