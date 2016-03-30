@@ -17,7 +17,7 @@ ATOM_VALENCES = {
 }
 
 def is_monovalent(atom):
-    return ATOM_VALENCES[atom] == (1,)
+    return ATOM_VALENCES[atom] == MONOVALENT
 
 def number_neighbours(atom):
     return [valence - 1 for valence in ATOM_VALENCES[atom]]
