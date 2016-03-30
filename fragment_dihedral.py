@@ -9,28 +9,28 @@ from pipeline.pipelineHelperFunctions import ELEMENT_NUMBERS
 
 CHEMICAL_GROUPS = (
     # Hydrocarbons
-    ('alkane', 'J,J,J|C|C|J,J,J'),
-    ('alkane', 'J,J|C|C|J,J'),
+    ('alkane', 'J{3}|C|C|J{3}'),
+    ('alkane', 'J{2}|C|C|J{2}'),
     ('alkyne', 'J|C|C|J'),
 
     # Groups containing halogens
     ('monofluoro', 'F,!X,!X|C|Z|%'),
     ('difluoro', 'F,F,!X|C|Z|%'),
-    ('trifluoro', 'F,F,F|C|Z|%'),
+    ('trifluoro', 'F{3}|C|Z|%'),
     ('chloro', 'CL,!X,!X|C|Z|%'),
     ('dichloro', 'CL,CL,!X|C|Z|%'),
-    ('trichloro', 'CL,CL,CL|C|Z|%'),
+    ('trichloro', 'CL{3}|C|Z|%'),
     ('bromo', 'BR,!X,!X|C|Z|%'),
     ('dibromo', 'BR,BR,!X|C|Z|%'),
-    ('tribromo', 'BR,BR,BR|C|Z|%'),
+    ('tribromo', 'BR{3}|C|Z|%'),
     ('iodo', 'I,!X,!X|C|Z|%'),
     ('diiodo', 'I,I,!X|C|Z|%'),
-    ('triiodo', 'I,I,I|C|Z|%'),
+    ('triiodo', 'I{3}|C|Z|%'),
 
     # Groups containing oxygen
     ('alcohol I', 'C,H,H|C|O|H'),
     ('alcohol II', 'C,C,H|C|O|H'),
-    ('alcohol III', 'C,C,C|C|O|H'),
+    ('alcohol III', 'C{3}|C|O|H'),
     ('ketone', '%|C|C|O,C'),
     ('aldehyde', '%|C|C|O,H'),
     ('acyl halide', '%|C|C|O,X'),
@@ -42,20 +42,20 @@ CHEMICAL_GROUPS = (
     ('amine I', '%|C|N|H,H'),
     ('amine II', '%|C|N|C,H'),
     ('amine III', '%|C|N|C,C'),
-    ('ammonium ion', '%|J|N|J,J,J'),
-    ('ketimine I', 'H|N|C|C,C'),
-    ('ketimine II', 'C|N|C|C,C'),
+    ('ammonium ion', '%|J|N|J{3}'),
+    ('ketimine I', 'H|N|C|C{2}'),
+    ('ketimine II', 'C|N|C|C{2}'),
     ('aldimine I', 'H|N|C|C,H'),
     ('aldimine II', 'C|N|C|C,H'),
-    ('imide', 'N/A'),
+    ('imide', ''),
     ('azide', 'N|N|N|C'),
     ('azo', 'C|N|N|C'),
     ('cyanate', 'C|O|C|N'),
     ('isocyanate', 'C|N|C|O'),
     ('nitrate', 'C|O|N|O,O'),
-    ('nitrile', 'N|C|C|Z,Z,Z'),
-    ('isonitrile', 'C|N|C|Z,Z,Z'),
-    ('nitro', 'C|N|O,O'),
+    ('nitrile', 'N|C|C|Z{3}'),
+    ('isonitrile', 'C|N|C|Z{3}'),
+    ('nitro', '%|C|N|O,O'),
     ('nitroso', '%|C|N|O'),
     ('pyridyl', ''),
 
@@ -72,12 +72,12 @@ CHEMICAL_GROUPS = (
     ('carbonothioyl', '%|J|C|S,J'),
 
     # Groups containing phosphorus
-    ('phosphino', '%|C|P|C,C'),
-    ('phosphono', '%|C|P|O,O,O'),
-    ('phosphate', 'C|O|P|O,O,O'),
+    ('phosphino', '%|C|P|C{2}'),
+    ('phosphono', '%|C|P|O{3}'),
+    ('phosphate', 'C|O|P|O{3}'),
 
     # Groups containing boron
-    ('borono', '%|C|B|O,O'),
+    ('borono', '%|C|B|O{2}'),
 )
 
 NEIGHBOUR_SEPARATOR = ','
