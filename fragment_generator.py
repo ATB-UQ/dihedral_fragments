@@ -25,7 +25,7 @@ def number_neighbours(atom):
     return [valence - 1 for valence in ATOM_VALENCES[atom]]
 
 ATOMS = ATOM_VALENCES.keys()
-CORE_ATOMS = [atom for atom in ATOMS if not is_monovalent(atom)]
+CENTRAL_ATOMS = [atom for atom in ATOMS if not is_monovalent(atom)]
 
 FORBIDDEN_BONDS = (
     ('P', 'P'),
@@ -45,7 +45,7 @@ def is_forbidden_bond(bond):
     return (sorted(bond) in FORBIDDEN_BONDS)
 
 def main():
-    for (atom_2, atom_3) in combinations_with_replacement(CORE_ATOMS, 2):
+    for (atom_2, atom_3) in combinations_with_replacement(CENTRAL_ATOMS, 2):
 
         if is_forbidden_bond((atom_2, atom_3)):
             continue
