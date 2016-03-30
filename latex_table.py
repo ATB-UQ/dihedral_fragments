@@ -5,7 +5,7 @@ def dihedral(pattern):
     return '\\dihedral{' + protect(pattern) + '}'
 
 def protect(pattern):
-    return pattern.replace('%', '\\%')
+    return pattern.replace('%', '\\%').replace('{', '\\{').replace('}', '\\}')
 
 def indent_str(latex_str, number_indents):
     return '\n'.join(['\t'*number_indents + line for line in latex_str.splitlines()])
