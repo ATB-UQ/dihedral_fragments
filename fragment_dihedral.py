@@ -202,14 +202,22 @@ def REGEX_GROUP(index):
 def REGEX_OR(*args):
     return '(' + '|'.join(args) + ')'
 
-def REGEX_ESCAPE(pattern):
-    return BACKSLASH + BACKSLASH + str(pattern)
+def REGEX_ESCAPE(pattern, flavour='sql'):
+    if flavour == 'sql':
+        return BACKSLASH + BACKSLASH + str(pattern)
+    elif flavour == 're':
+        return '[' + str(pattern) + ']'
+    else:
+        raise Exception()
 
 def REGEX_AT_LEAST(pattern, escape_plus=True):
     return str(pattern) + (BACKSLASH if escape_plus else '') + '+'
 
 def FORMAT_ESCAPED(pattern):
     return pattern.replace('{', '{{').replace('}', '}}')
+
+def FORMAT_UNESCAPED(pattern):
+    return pattern.replace('{{', '{').replace('}}', '}')
 
 def NOT(pattern):
     return '!' + str(pattern)
@@ -243,16 +251,17 @@ OPERATORS = (
     ),
 )
 
-REGEX_FILTERS = (
-    # Order matters here !
-    (
-        '|',
-        REGEX_ESCAPE('|'),
-        'str',
-    ),
-) + OPERATORS + (
-    ('%', ANY_NUMBER_OF_ATOMS, 'str'),
-)
+def regex_filters(flavour='sql'):
+    return (
+        # Order matters here !
+        (
+            '|',
+            REGEX_ESCAPE('|', flavour=flavour),
+            'str',
+        ),
+    ) + OPERATORS + (
+        ('%', ANY_NUMBER_OF_ATOMS, 'str'),
+    )
 
 OPERATOR_STRIPPER = (
     lambda x: re.find('')
@@ -312,8 +321,8 @@ def split_on_atoms(groups):
 
     return atoms
 
-def apply_regex_filters(string, debug=False):
-    for (pattern, replacement, substitution_type) in REGEX_FILTERS:
+def apply_regex_filters(string, debug=False, flavour='sql'):
+    for (pattern, replacement, substitution_type) in regex_filters(flavour):
         if debug:
             old_string = string
 
@@ -324,8 +333,8 @@ def apply_regex_filters(string, debug=False):
         elif substitution_type == 're_map_groups':
             matches = re.findall(pattern, string)
             if matches:
-                if len(matches) > 1:
-                    raise Exception('This feature is not supported yet.')
+                if len(matches) > 1 and False:
+                    raise Exception('This feature is not supported yet ({0}).'.format(string))
                 mapped_replacement = replacement(*matches[0])
                 string = re.sub(pattern, mapped_replacement, string)
         else:
@@ -335,8 +344,8 @@ def apply_regex_filters(string, debug=False):
             print [pattern, replacement, old_string], string
     return substitute_atoms_in_pattern(string)
 
-def escaped_special_regex_characters(patterns):
-    return [ (REGEX_START + apply_regex_filters(pattern)  + REGEX_END) for pattern in patterns]
+def escaped_special_regex_characters(patterns, flavour='sql'):
+    return [ (REGEX_START + apply_regex_filters(pattern, flavour=flavour)  + REGEX_END) for pattern in patterns]
 
 def sql_OR(*args):
     return ' '.join(
@@ -347,29 +356,37 @@ TRUE_OR_FALSE = [False, True]
 FALSE = [False]
 PUT_SUBSTITUTION_PATTERN_FIRST = True
 
-def sql_pattern_matching_for(pattern):
-    assert len([x for x in pattern if has_substitution_pattern(x) ]) <= 5, [x for x in pattern if has_substitution_pattern(pattern) ]
+def re_patterns(pattern, full_regex=False, flavour='sql'):
+    components = split_group_str(pattern)
+    assert len(components) == 4
+    need_to_reverse_inner_atoms = (components[1] != components[2])
 
+    left_permutations = permutations(range(len(group_by(split_neighbour_str(components[0]), key=lambda x:x))))
+    right_permutation = permutations(range(len(group_by(split_neighbour_str(components[3]), key=lambda x:x))))
+
+    patterns = [
+        correct_pattern(pattern, should_reverse=should_reverse, left_permutation=left_permutation, right_permutation=right_permutation)
+        for (should_reverse, left_permutation, right_permutation) in product((TRUE_OR_FALSE if need_to_reverse_inner_atoms else FALSE), left_permutations, right_permutation)
+    ]
+
+    if full_regex:
+        patterns = escaped_special_regex_characters(patterns, flavour=flavour)
+
+    return patterns
+
+def re_pattern_matching_for(pattern):
+    if not (has_substitution_pattern(pattern) or has_regex_pattern(pattern)):
+        return lambda test_string: test_string == str(FragmentDihedral(pattern))
+    else:
+        patterns = [FORMAT_UNESCAPED(pattern) for pattern in re_patterns(pattern, full_regex=True, flavour='re')]
+        return lambda test_string: any([re.search(match_pattern, test_string) for match_pattern in patterns])
+
+def sql_pattern_matching_for(pattern):
     if not (has_substitution_pattern(pattern) or has_regex_pattern(pattern)):
         return 'dihedral_string="{pattern}"'.format(pattern=FragmentDihedral(pattern))
     else:
         use_full_regex = has_regex_pattern(pattern)
-
-        components = split_group_str(pattern)
-        assert len(components) == 4
-        need_to_reverse_inner_atoms = (components[1] != components[2])
-
-        left_permutations = permutations(range(len(group_by(split_neighbour_str(components[0]), key=lambda x:x))))
-        right_permutation = permutations(range(len(group_by(split_neighbour_str(components[3]), key=lambda x:x))))
-
-        patterns = [
-            correct_pattern(pattern, should_reverse=should_reverse, left_permutation=left_permutation, right_permutation=right_permutation)
-            for (should_reverse, left_permutation, right_permutation) in product((TRUE_OR_FALSE if need_to_reverse_inner_atoms else FALSE), left_permutations, right_permutation)
-        ]
-
-
-        if use_full_regex:
-            patterns = escaped_special_regex_characters(patterns)
+        patterns = re_patterns(pattern, full_regex=use_full_regex, flavour='sql')
 
         return sql_OR(
             [
