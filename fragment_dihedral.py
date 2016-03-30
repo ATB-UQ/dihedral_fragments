@@ -7,6 +7,12 @@ import re
 from atb_helpers.iterables import group_by
 from pipeline.pipelineHelperFunctions import ELEMENT_NUMBERS
 
+def element_number(atom):
+    try:
+        return ELEMENT_NUMBERS[atom]
+    except:
+        return 999
+
 CHEMICAL_GROUPS = (
     # Hydrocarbons
     ('alkane', 'J{3}|C|C|J{3}'),
@@ -98,7 +104,7 @@ def split_group_str(group_str):
 
 class FragmentDihedral(object):
     HIGHEST_ATOMS_FIRST = dict(
-        key=lambda x: ELEMENT_NUMBERS[x],
+        key=lambda x: element_number(x),
         reverse=True,
     )
 
@@ -144,9 +150,9 @@ class FragmentDihedral(object):
         other.neighbours_4.sort(**FragmentDihedral.HIGHEST_ATOMS_FIRST)
 
         # Compare the two central atoms and put the heavier one on the left
-        if ELEMENT_NUMBERS[other.atom_3] >  ELEMENT_NUMBERS[other.atom_2]:
+        if element_number(other.atom_3) >  element_number(other.atom_2):
             should_reverse = True
-        elif ELEMENT_NUMBERS[other.atom_3] == ELEMENT_NUMBERS[other.atom_2]:
+        elif element_number(other.atom_3) == element_number(other.atom_2):
             should_reverse = False
 
             if len(self.neighbours_4) > len(self.neighbours_1):
@@ -154,10 +160,10 @@ class FragmentDihedral(object):
             elif len(self.neighbours_4) == len(self.neighbours_1):
                 # If identical central atoms, and same number of neighbours on both ends, try to resolve ambiguity one neighbour at a time
                 for (neighbour_1, neighbour_4) in zip(self.neighbours_1, self.neighbours_4):
-                    if ELEMENT_NUMBERS[neighbour_4] > ELEMENT_NUMBERS[neighbour_1]:
+                    if element_number(neighbour_4) > element_number(neighbour_1):
                         should_reverse = True
                         break
-                    elif ELEMENT_NUMBERS[neighbour_4] == ELEMENT_NUMBERS[neighbour_1]:
+                    elif element_number(neighbour_4) == element_number(neighbour_1):
                         pass
                     else:
                         break
