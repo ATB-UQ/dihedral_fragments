@@ -1,5 +1,7 @@
 from itertools import product, combinations_with_replacement
-from fragment_dihedral import FragmentDihedral
+import re
+
+from fragment_dihedral import FragmentDihedral, CHEMICAL_GROUPS, re_pattern_matching_for
 
 MONOVALENT = (1,)
 
@@ -37,6 +39,8 @@ FORBIDDEN_BONDS = (
 
 FORBIDDEN_BONDS = [sorted(bond) for bond in FORBIDDEN_BONDS]
 
+CHEMICAL_GROUPS_MATCHING_PATTERNS = [re_pattern_matching_for(pattern) for (moiety, pattern) in CHEMICAL_GROUPS if pattern]
+
 def is_forbidden_bond(bond):
     return (sorted(bond) in FORBIDDEN_BONDS)
 
@@ -50,7 +54,10 @@ def main():
             neighbours_1 = combinations_with_replacement(ATOMS, len_neighbours_1)
             neighbours_4 = combinations_with_replacement(ATOMS, len_neighbours_4)
             for a, b in product(neighbours_1, neighbours_4):
-                print FragmentDihedral(atom_list=(list(a), atom_2, atom_3, list(b)))
+                d = str(FragmentDihedral(atom_list=(list(a), atom_2, atom_3, list(b))))
+                s = sum([matching_function(d) for matching_function in CHEMICAL_GROUPS_MATCHING_PATTERNS]) 
+                if s > 0:
+                    print d, s
 
 if __name__ == '__main__':
     main()
