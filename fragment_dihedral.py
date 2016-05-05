@@ -7,6 +7,12 @@ import re
 from atb_helpers.iterables import group_by
 from pipeline.pipelineHelperFunctions import ELEMENT_NUMBERS
 
+DEBUG = False
+
+def print_if_DEBUG(something):
+    if DEBUG:
+        print something
+
 def element_number(atom):
     try:
         return ELEMENT_NUMBERS[atom]
@@ -102,6 +108,14 @@ def join_groups(groups):
 def split_group_str(group_str):
     return group_str.split(GROUP_SEPARATOR)
 
+class Dihedral_Fragment_Matching_Pattern(object):
+    def __init__(self, pattern_string=None):
+        splitted_string = split_group_str(pattern)
+        self.neighbours_1 = [atom.upper() for atom in split_neighbour_str(splitted_string[0])]
+        self.atom_2 = splitted_string[1].upper()
+        self.atom_3 = splitted_string[2].upper()
+        self.neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[3])]
+
 class FragmentDihedral(object):
     HIGHEST_ATOMS_FIRST = dict(
         key=lambda x: element_number(x),
@@ -117,7 +131,7 @@ class FragmentDihedral(object):
             self.atom_3 = splitted_string[2].upper()
             self.neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[3])]
         else:
-            self.neighbours_1, self.atom_2, self.atom_3, self.neighbours_4= atom_list
+            self.neighbours_1, self.atom_2, self.atom_3, self.neighbours_4 = atom_list
 
         canonical_rep = self.__canonical_rep__()
 
@@ -188,10 +202,12 @@ REGEX_START, REGEX_END = ('^', '$')
 
 BACKSLASH = '\\'
 COMMA = ','
+ESCAPED_COMMA = ';'
+UNESCAPE_COMMA = lambda x: x.replace(ESCAPED_COMMA, COMMA)
 ONE_LETTER = '[A-Z]'
 ONE_ATOM = ONE_LETTER + '{1,2}'
 ONE_NUMBER = '[0-9]'
-ANY_NUMBER_OF_ATOMS = '[A-Z,]*'
+ANY_NUMBER_OF_ATOMS = '[A-Z' + ESCAPED_COMMA + ']*'
 
 def REGEX_NOT(pattern):
     return '[^(' + str(pattern) + ')]'
@@ -204,6 +220,7 @@ def REGEX_OR(*args):
 
 def REGEX_ESCAPE(pattern, flavour='sql'):
     if flavour == 'sql':
+        return BACKSLASH + str(pattern)
         return BACKSLASH + BACKSLASH + str(pattern)
     elif flavour == 're':
         return '[' + str(pattern) + ']'
@@ -236,17 +253,17 @@ OPERATORS = (
     ),
     (   # A+
         REGEX_AT_LEAST(CAPTURE(ONE_ATOM), escape_plus=True),
-        REGEX_AT_LEAST(REGEX_OR( REGEX_GROUP(1), COMMA), escape_plus=False),
+        REGEX_AT_LEAST(REGEX_OR( REGEX_GROUP(1), ESCAPED_COMMA), escape_plus=False),
         're',
     ),
     (   # A{X}
         CAPTURE(ONE_ATOM) + ESCAPE('{') + CAPTURE(ONE_NUMBER) + ESCAPE('}'),
-        lambda x, z: FORMAT_ESCAPED( REGEX_OR(x, COMMA) + '{' + str(2*int(z) - 1) + '}' ),
+        lambda x, z: FORMAT_ESCAPED( REGEX_OR(x, ESCAPED_COMMA) + '{' + str(2*int(z) - 1) + '}' ),
         're_map_groups',
     ),
     (   # A{X,Y}
         CAPTURE(ONE_ATOM) + ESCAPE('{') + CAPTURE(ONE_NUMBER) + ESCAPE('-') + CAPTURE(ONE_NUMBER) + ESCAPE('}'),
-        lambda x, y, z: FORMAT_ESCAPED( REGEX_OR(x, COMMA) + '{' + str(int(y) + 1) + ',' + str(2*int(z) - 1) + '}' ),
+        lambda x, y, z: FORMAT_ESCAPED( REGEX_OR(x, ESCAPED_COMMA) + '{' + str(int(y) + 1) + ESCAPED_COMMA + str(2*int(z) - 1) + '}' ),
         're_map_groups',
     ),
 )
@@ -278,10 +295,9 @@ SQL_SUBSTITUTION_CHARACTERS = ('_', '%')
 SQL_FULL_REGEX_CHARACTERS = ('{', '}', '!', '+', '-') + tuple(ATOM_CATEGORIES.keys())
 has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARACTERS])
 
-
 def substitute_atom_pattern(atom_pattern):
     def cleaned_atom_pattern(x):
-        return re.sub('[\[\]\(\)\^\|\{\}\+\-0-9,]', '', x) # This line prevents atoms for ever having numbers in their name
+        return re.sub('[\[\]\(\)\^\|\{\}\+\-0-9,]', '', x) # This line prevents atoms from ever having numbers in their name
 
     for cleaned_atom_pattern in (atom_pattern, cleaned_atom_pattern(atom_pattern)):
         if cleaned_atom_pattern in ATOM_CATEGORIES:
@@ -293,33 +309,35 @@ def substitute_atoms_in_pattern(pattern):
     return BAR.join(
         [
             join_neighbours([ substitute_atom_pattern(atom) for atom in split_on_atoms(group)])
-            for group in pattern.split(BAR)
+            for group in pattern.split(GROUP_SEPARATOR)
         ]
     )
 
-def split_on_atoms(groups):
-    atom_patterns = split_neighbour_str(groups)
+def split_on_atoms(group):
+    atom_patterns = split_neighbour_str(group)
 
-    if len(atom_patterns):
-        return atom_patterns
+    return atom_patterns
 
-    atoms = []
-    acc = []
-
-    def discharge_acc():
-        if acc is not []:
-            atoms.append(join_neighbours(acc))
-
-    for atom_pattern in atom_patterns:
-        if not (re.search(ONE_LETTER, atom_pattern[0]) or re.search(ONE_LETTER, atom_pattern[-1])):
-            acc.append(atom_pattern)
-        else:
-            discharge_acc()
-            acc = []
-            atoms.append(atom_pattern)
-    discharge_acc()
-
-    return atoms
+#    atoms = []
+#    acc = []
+#
+#    def discharge_acc():
+#        if acc is not []:
+#            atoms.append(join_neighbours(acc))
+#
+#    for atom_pattern in atom_patterns:
+#        print atom_pattern
+#        if not (re.search(ONE_LETTER, atom_pattern[0]) or re.search(ONE_LETTER, atom_pattern[-1])):
+#            acc.append(atom_pattern)
+#        else:
+#            discharge_acc()
+#            acc = []
+#            atoms.append(atom_pattern)
+#    discharge_acc()
+#
+#    print_if_DEBUG(atoms)
+#    print atoms
+#    return atoms
 
 def apply_regex_filters(string, debug=False, flavour='sql'):
     for (pattern, replacement, substitution_type) in regex_filters(flavour):
@@ -342,7 +360,8 @@ def apply_regex_filters(string, debug=False, flavour='sql'):
 
         if debug:
             print [pattern, replacement, old_string], string
-    return substitute_atoms_in_pattern(string)
+    print_if_DEBUG(string)
+    return UNESCAPE_COMMA(substitute_atoms_in_pattern(string))
 
 def escaped_special_regex_characters(patterns, flavour='sql'):
     return [ (REGEX_START + apply_regex_filters(pattern, flavour=flavour)  + REGEX_END) for pattern in patterns]
@@ -356,17 +375,35 @@ TRUE_OR_FALSE = [False, True]
 FALSE = [False]
 PUT_SUBSTITUTION_PATTERN_FIRST = True
 
+LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX = (0, 1, 2, 3)
+
 def re_patterns(pattern, full_regex=False, flavour='sql'):
     components = split_group_str(pattern)
     assert len(components) == 4
-    need_to_reverse_inner_atoms = (components[1] != components[2])
+    need_to_reverse_inner_atoms = (components[LEFT_ATOM_INDEX] != components[RIGHT_ATOM_INDEX])
 
-    left_permutations = permutations(range(len(group_by(split_neighbour_str(components[0]), key=lambda x:x))))
-    right_permutation = permutations(range(len(group_by(split_neighbour_str(components[3]), key=lambda x:x))))
+    left_neighbour_groups, right_neighbour_groups = map(
+        lambda index: split_neighbour_str(components[index]),
+        (LEFT_GROUP_INDEX, RIGHT_GROUP_INDEX),
+    )
+
+    left_permutations, right_permutations = map(
+        lambda group: permutations(range(len(group_by(group, key=lambda x:x)))),
+        (left_neighbour_groups, right_neighbour_groups),
+    )
 
     patterns = [
-        correct_pattern(pattern, should_reverse=should_reverse, left_permutation=left_permutation, right_permutation=right_permutation)
-        for (should_reverse, left_permutation, right_permutation) in product((TRUE_OR_FALSE if need_to_reverse_inner_atoms else FALSE), left_permutations, right_permutation)
+        correct_pattern(
+            pattern,
+            should_reverse=should_reverse,
+            left_permutation=left_permutation,
+            right_permutation=right_permutation,
+        )
+        for (should_reverse, left_permutation, right_permutation) in product(
+            (TRUE_OR_FALSE if need_to_reverse_inner_atoms else FALSE),
+            left_permutations,
+            right_permutations,
+        )
     ]
 
     if full_regex:
@@ -374,12 +411,22 @@ def re_patterns(pattern, full_regex=False, flavour='sql'):
 
     return patterns
 
-def re_pattern_matching_for(pattern):
+def re_pattern_matching_for(pattern, debug=False):
     if not (has_substitution_pattern(pattern) or has_regex_pattern(pattern)):
         return lambda test_string: test_string == str(FragmentDihedral(pattern))
     else:
-        patterns = [FORMAT_UNESCAPED(pattern) for pattern in re_patterns(pattern, full_regex=True, flavour='re')]
-        return lambda test_string: any([re.search(match_pattern, test_string) for match_pattern in patterns])
+        patterns = [FORMAT_UNESCAPED(re_pattern) for re_pattern in re_patterns(pattern, full_regex=True, flavour='re')]
+
+        def match_pattern_to(test_string):
+            if debug:
+                print pattern
+                print patterns
+                print test_string
+                print any([re.search(match_pattern, test_string) for match_pattern in patterns])
+                print
+            return any([re.search(match_pattern, test_string) for match_pattern in patterns])
+
+        return match_pattern_to
 
 def sql_pattern_matching_for(pattern):
     if not (has_substitution_pattern(pattern) or has_regex_pattern(pattern)):
@@ -387,6 +434,7 @@ def sql_pattern_matching_for(pattern):
     else:
         use_full_regex = has_regex_pattern(pattern)
         patterns = re_patterns(pattern, full_regex=use_full_regex, flavour='sql')
+        #patterns = [FORMAT_UNESCAPED(re_pattern) for re_pattern in re_patterns(pattern, full_regex=True, flavour='sql')]
 
         return sql_OR(
             [
@@ -492,7 +540,8 @@ def test_patterns():
 
 
 if __name__ == "__main__" :
-    test_canonical_rep()
+    if False:
+        test_canonical_rep()
 
     if False:
         test_patterns()
@@ -507,4 +556,11 @@ if __name__ == "__main__" :
         print dihedral_3
         print dihedral_3 == dihedral_2
 
+    assert re_pattern_matching_for('Z,%|Z|Z|Z,%', debug=True)('C,H|C|C|C,H') == True
+    assert re_pattern_matching_for('Z|Z|Z|Z,%', debug=True)('C,H|C|C|C,H') == False
+    assert re_pattern_matching_for('Z|Z|Z|Z,%', debug=True)('C|C|C|C,H') == True
+
+    print re_pattern_matching_for('Z|Z|Z|Z', debug=True)
+
+    print sql_pattern_matching_for('J{3}|C|C|J{3}')
 
