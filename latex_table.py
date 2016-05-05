@@ -46,7 +46,7 @@ def latex_caption(caption, indent=4):
 
 if __name__ == "__main__" :
     print latex_render_table(
-        rows=CHEMICAL_GROUPS,
+        rows=[(name, pattern) for (name, pattern) in CHEMICAL_GROUPS if pattern],
         row_formatters=(lambda x: x, lambda x: dihedral(x)),
         number_columns=3,
     )
