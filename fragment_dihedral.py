@@ -198,7 +198,7 @@ def has_regex_pattern(pattern):
     assert ('$' not in pattern) and ('^' not in pattern)
     return any([y in pattern for y in SQL_FULL_REGEX_CHARACTERS])
 
-REGEX_START, REGEX_END = ('^', '$')
+REGEX_START_ANCHOR, REGEX_END_ANCHOR, REGEX_OR_OPERATOR = ('^', '$', '|')
 
 BACKSLASH = '\\'
 COMMA = ','
@@ -216,7 +216,7 @@ def REGEX_GROUP(index):
     return BACKSLASH + str(index)
 
 def REGEX_OR(*args):
-    return '(' + '|'.join(args) + ')'
+    return '(' + REGEX_OR_OPERATOR.join(args) + ')'
 
 def REGEX_ESCAPE(pattern, flavour='sql'):
     if flavour == 'sql':
@@ -304,8 +304,11 @@ def substitute_atom_pattern(atom_pattern):
             return re.sub(cleaned_atom_pattern, ATOM_CATEGORIES[cleaned_atom_pattern], atom_pattern)
     return atom_pattern
 
-def substitute_atoms_in_pattern(pattern):
-    BAR = REGEX_ESCAPE('|')
+def substitute_atoms_in_pattern(pattern, flavour='sql'):
+    if flavour == 'sql':
+        BAR = REGEX_ESCAPE('|')
+    elif flavour == 're':
+        BAR = '|'
     return BAR.join(
         [
             join_neighbours([ substitute_atom_pattern(atom) for atom in split_on_atoms(group)])
@@ -361,10 +364,10 @@ def apply_regex_filters(string, debug=False, flavour='sql'):
         if debug:
             print [pattern, replacement, old_string], string
     print_if_DEBUG(string)
-    return UNESCAPE_COMMA(substitute_atoms_in_pattern(string))
+    return UNESCAPE_COMMA(substitute_atoms_in_pattern(string, flavour=flavour))
 
 def escaped_special_regex_characters(patterns, flavour='sql'):
-    return [ (REGEX_START + apply_regex_filters(pattern, flavour=flavour)  + REGEX_END) for pattern in patterns]
+    return [ (REGEX_START_ANCHOR + apply_regex_filters(pattern, flavour=flavour)  + REGEX_END_ANCHOR) for pattern in patterns]
 
 def sql_OR(*args):
     return ' '.join(
@@ -559,6 +562,8 @@ if __name__ == "__main__" :
     assert re_pattern_matching_for('Z,%|Z|Z|Z,%', debug=True)('C,H|C|C|C,H') == True
     assert re_pattern_matching_for('Z|Z|Z|Z,%', debug=True)('C,H|C|C|C,H') == False
     assert re_pattern_matching_for('Z|Z|Z|Z,%', debug=True)('C|C|C|C,H') == True
+    assert re_pattern_matching_for('N,J|C|C|J{3}', debug=True)('N,H|C|C|C,H,H') == True
+    assert re_pattern_matching_for('N,J|C|C|J{2}', debug=True)('N,H|C|C|C,H') == True
 
     print re_pattern_matching_for('Z|Z|Z|Z', debug=True)
 
