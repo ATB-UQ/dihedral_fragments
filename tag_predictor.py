@@ -2,7 +2,12 @@ from API_client.api import API
 from fragment_dihedrals.fragment_dihedral import re_pattern_matching_for
 from fragment_dihedrals.chemistry import CHEMICAL_GROUPS
 
-CHEMICAL_GROUPS_MATCHING_PATTERNS = [(moiety, re_pattern_matching_for(pattern, debug=True, metadata=moiety)) for (moiety, pattern) in CHEMICAL_GROUPS if pattern]
+DEBUG = True
+
+CHEMICAL_GROUPS_MATCHING_PATTERNS = [
+    (moiety, re_pattern_matching_for(pattern, debug=DEBUG, metadata=moiety))
+    for (moiety, pattern) in CHEMICAL_GROUPS if pattern
+]
 
 def dihedrals(molecule):
     return molecule.dihedral_fragments
@@ -41,12 +46,12 @@ def get_ignored_molids():
         return set()
 
 if __name__ == '__main__':
-    print tags_for_dihedral("O,H|C|C|C,H")
-
-    #print tags_for_dihedral('H,H,H|C|C|CL,CL,CL')
-    #print tags_for_dihedral('CL,H|C|C|H,H')
-    #print tags_for_dihedral('O,O,O|P|O|C')
-    #print tags_for_dihedral('C|O|P|O,O,O')
+    assert tags_for_dihedral('C,C|N|C|H,H,H') == ['amine III']
+    assert tags_for_dihedral('H,H,H|C|C|O,C') == ['ketone']
+    assert tags_for_dihedral("O,H|C|C|C,H") == ['aldehyde']
+    assert tags_for_dihedral('H,H,H|C|C|CL,CL,CL') == ['trichloro']
+    assert tags_for_dihedral('O,O,O|P|O|C') == ['phosphate']
+    exit()
 
     ignored_molids = get_ignored_molids()
 

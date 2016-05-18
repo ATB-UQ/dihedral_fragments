@@ -28,7 +28,7 @@ CHEMICAL_GROUPS = (
     ('aldehyde', 'J{2-3}|C|C|O,H'),
     ('acyl halide', '%|C|C|O,X'),
     ('carboxylic acid', '%,O|C|O|H'),
-    ('ester', 'C,O|C|O|C'),
+    ('ester', 'J,O|C|O|C'),
     ('ether', 'J{3}|C|O|C'),
 
     # Groups containing nitrogen

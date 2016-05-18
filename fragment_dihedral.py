@@ -311,7 +311,7 @@ LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX = (0, 1, 
 def re_patterns(pattern, full_regex=False, flavour='sql', debug=False, metadata=None):
     components = split_group_str(pattern)
     assert len(components) == 4
-    need_to_reverse_inner_atoms = (components[LEFT_ATOM_INDEX] != components[RIGHT_ATOM_INDEX])
+    need_to_reverse_inner_atoms = (components[LEFT_ATOM_INDEX] == components[RIGHT_ATOM_INDEX])
 
     if debug:
         print metadata
