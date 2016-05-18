@@ -1,3 +1,5 @@
+from sys import stderr
+
 from API_client.api import API
 from fragment_dihedrals.fragment_dihedral import re_pattern_matching_for
 from fragment_dihedrals.chemistry import CHEMICAL_GROUPS
@@ -33,7 +35,7 @@ def yes_or_no(query):
     elif choice == 'n':
        return False
     else:
-       sys.stdout.write("Please respond with 'yes' or 'no'")
+       stderr.write("Please respond with 'yes' or 'no'")
 
 IGNORE_FILE = '.ignore'
 
@@ -46,6 +48,7 @@ def get_ignored_molids():
         return set()
 
 if __name__ == '__main__':
+    assert tags_for_dihedral('CL,CL,H|C|C|H,H,H') == ['dichloro']
     assert tags_for_dihedral('C,C|N|C|H,H,H') == ['amine III']
     assert tags_for_dihedral('H,H,H|C|C|O,C') == ['ketone']
     assert tags_for_dihedral("O,H|C|C|C,H") == ['aldehyde']
@@ -56,7 +59,7 @@ if __name__ == '__main__':
 
     fh = open(IGNORE_FILE, 'a')
 
-    DATA_SETS_TAGS = set(['Shivakumar et al.', 'Marenich et al.', 'Mobley et al.'])
+    DATA_SETS_TAGS = set(['Shivakumar et al.', 'Marenich et al.', 'Mobley et al.', 'SAMPL0', 'SAMPL1', 'SAMPL2', 'SAMPL4'])
 
     api = API(debug=True, api_format='pickle')
     molecules = api.Molecules.search(tag='Mobley et al.', max_atoms=15)
