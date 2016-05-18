@@ -3,6 +3,7 @@ from itertools import product
 from itertools import permutations
 from jinja2 import Template
 import re
+from collections import namedtuple
 
 from atb_helpers.iterables import group_by
 from pipeline.pipelineHelperFunctions import ELEMENT_NUMBERS
@@ -173,6 +174,14 @@ def CAPTURE(pattern):
 def ESCAPE(pattern):
     return BACKSLASH + str(pattern)
 
+Operator_Pattern = namedtuple('Operator_Pattern', 'pattern, replacement, substitution_type')
+
+def exactly_N_times_operator(what=ONE_ATOM, how_many_times=ONE_NUMBER):
+    return CAPTURE(what) + ESCAPE('{') + CAPTURE(how_many_times) + ESCAPE('}')
+
+def N_to_M_times_operator(what=ONE_ATOM, N=ONE_NUMBER, M=ONE_NUMBER):
+    return CAPTURE(ONE_ATOM) + ESCAPE('{') + CAPTURE(ONE_NUMBER) + ESCAPE('-') + CAPTURE(ONE_NUMBER) + ESCAPE('}')
+
 OPERATORS = (
     (   # !A
         NOT(CAPTURE(ONE_ATOM)),
@@ -185,28 +194,33 @@ OPERATORS = (
         're',
     ),
     (   # A{X}
-        CAPTURE(ONE_ATOM) + ESCAPE('{') + CAPTURE(ONE_NUMBER) + ESCAPE('}'),
-        lambda x, z: FORMAT_ESCAPED( REGEX_OR(x, ESCAPED_COMMA) + '{' + str(2*int(z) - 1) + '}' ),
+        exactly_N_times_operator,
+        lambda x, z: FORMAT_ESCAPED( REGEX_OR(x, ESCAPED_COMMA) + '{' + str(2 * int(z) - 1) + '}' ),
         're_map_groups',
     ),
     (   # A{X,Y}
-        CAPTURE(ONE_ATOM) + ESCAPE('{') + CAPTURE(ONE_NUMBER) + ESCAPE('-') + CAPTURE(ONE_NUMBER) + ESCAPE('}'),
-        lambda x, y, z: FORMAT_ESCAPED( REGEX_OR(x, ESCAPED_COMMA) + '{' + str(int(y) + 1) + ESCAPED_COMMA + str(2*int(z) - 1) + '}' ),
+        N_to_M_times_operator,
+        lambda x, y, z: FORMAT_ESCAPED( REGEX_OR(x, ESCAPED_COMMA) + '{' + str(int(y) + 1) + ESCAPED_COMMA + str(2 * int(z) - 1) + '}' ),
         're_map_groups',
     ),
 )
 
+OPERATORS = map(
+    lambda x: Operator_Pattern(*x),
+    OPERATORS,
+)
+
 def regex_filters(flavour='sql'):
-    return (
+    return [
         # Order matters here !
-        (
+        Operator_Pattern(
             '|',
             REGEX_ESCAPE('|', flavour=flavour),
             'str',
         ),
-    ) + OPERATORS + (
-        ('%', ANY_NUMBER_OF_ATOMS, 'str'),
-    )
+    ] + OPERATORS + [
+        Operator_Pattern('%', ANY_NUMBER_OF_ATOMS, 'str'),
+    ]
 
 OPERATOR_STRIPPER = (
     lambda x: re.find('')
@@ -280,12 +294,19 @@ def apply_regex_filters(string, debug=False, flavour='sql'):
         elif substitution_type == 're':
             string = re.sub(pattern, replacement, string)
         elif substitution_type == 're_map_groups':
-            matches = re.findall(pattern, string)
+            general_pattern = pattern()
+
+            matches = re.findall(general_pattern, string)
             if matches:
-                if len(matches) > 1 and False:
-                    raise Exception('This feature is not supported yet ({0}).'.format(string))
-                mapped_replacement = replacement(*matches[0])
-                string = re.sub(pattern, mapped_replacement, string)
+                if debug:
+                    print matches
+                for match in matches:
+                    tailored_pattern = pattern(*match)
+                    mapped_replacement = replacement(*match)
+                    if debug:
+                        print tailored_pattern, match
+                        print mapped_replacement
+                    string = re.sub(tailored_pattern, mapped_replacement, string)
         else:
             raise Exception('Wrong substitution_type')
 
@@ -314,11 +335,11 @@ def re_patterns(pattern, full_regex=False, flavour='sql', debug=False, metadata=
     need_to_reverse_inner_atoms = (components[LEFT_ATOM_INDEX] == components[RIGHT_ATOM_INDEX])
 
     if debug:
+        print
         print metadata
         print 'need_to_reverse_inner_atoms: {0}'.format(need_to_reverse_inner_atoms)
         print components[LEFT_ATOM_INDEX]
         print components[RIGHT_ATOM_INDEX]
-        print
 
     left_neighbour_groups, right_neighbour_groups = map(
         lambda index: split_neighbour_str(components[index]),

@@ -2,7 +2,7 @@ from API_client.api import API
 from fragment_dihedrals.fragment_dihedral import re_pattern_matching_for
 from fragment_dihedrals.chemistry import CHEMICAL_GROUPS
 
-DEBUG = True
+DEBUG = False
 
 CHEMICAL_GROUPS_MATCHING_PATTERNS = [
     (moiety, re_pattern_matching_for(pattern, debug=DEBUG, metadata=moiety))
@@ -51,7 +51,6 @@ if __name__ == '__main__':
     assert tags_for_dihedral("O,H|C|C|C,H") == ['aldehyde']
     assert tags_for_dihedral('H,H,H|C|C|CL,CL,CL') == ['trichloro']
     assert tags_for_dihedral('O,O,O|P|O|C') == ['phosphate']
-    exit()
 
     ignored_molids = get_ignored_molids()
 
