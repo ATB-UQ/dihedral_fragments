@@ -19,79 +19,6 @@ def element_number(atom):
     except:
         return 999
 
-CHEMICAL_GROUPS = (
-    # Hydrocarbons
-    ('alkane', 'J{3}|C|C|J{3}'),
-    ('alkane', 'J{2}|C|C|J{2}'),
-    ('alkyne', 'J|C|C|J'),
-
-    # Groups containing halogens
-    ('monofluoro', 'F,!X,!X|C|Z|%'),
-    ('difluoro', 'F,F,!X|C|Z|%'),
-    ('trifluoro', 'F{3}|C|Z|%'),
-    ('chloro', 'CL,!X,!X|C|Z|%'),
-    ('dichloro', 'CL,CL,!X|C|Z|%'),
-    ('trichloro', 'CL{3}|C|Z|%'),
-    ('bromo', 'BR,!X,!X|C|Z|%'),
-    ('dibromo', 'BR,BR,!X|C|Z|%'),
-    ('tribromo', 'BR{3}|C|Z|%'),
-    ('iodo', 'I,!X,!X|C|Z|%'),
-    ('diiodo', 'I,I,!X|C|Z|%'),
-    ('triiodo', 'I{3}|C|Z|%'),
-
-    # Groups containing oxygen
-    ('alcohol I', 'C,H,H|C|O|H'),
-    ('alcohol II', 'C,C,H|C|O|H'),
-    ('alcohol III', 'C{3}|C|O|H'),
-    ('ketone', '%|C|C|O,C'),
-    ('aldehyde', '%|C|C|O,H'),
-    ('acyl halide', '%|C|C|O,X'),
-    ('carboxylic acid', '%,O|C|O|H'),
-    ('ester', '%,O|C|O|C'),
-
-    # Groups containing nitrogen
-    ('carboxamide', ''),
-    ('amine I', '%|C|N|H,H'),
-    ('amine II', '%|C|N|C,H'),
-    ('amine III', '%|C|N|C{2}'),
-    ('ammonium ion', '%|J|N|J{3}'),
-    ('ketimine I', 'H|N|C|C{2}'),
-    ('ketimine II', 'C|N|C|C{2}'),
-    ('aldimine I', 'H|N|C|C,H'),
-    ('aldimine II', 'C|N|C|C,H'),
-    ('imide', ''),
-    ('azide', 'N|N|N|C'),
-    ('azo', 'C|N|N|C'),
-    ('cyanate', 'C|O|C|N'),
-    ('isocyanate', 'C|N|C|O'),
-    ('nitrate', 'C|O|N|O{2}'),
-    ('nitrile', 'N|C|C|Z{3}'),
-    ('isonitrile', 'C|N|C|Z{3}'),
-    ('nitro', '%|C|N|O{2}'),
-    ('nitroso', '%|C|N|O'),
-    ('pyridyl', ''),
-
-    # Groups containing sulfur
-    ('thiol', 'J+|C|S|H'),
-    ('sulfide', 'J+|C|S|C'),
-    ('disulfide', 'C|S|S|C'),
-    ('sulfinyl', '%|C|S|C,O'),
-    ('sulfonyl', '%|C|S|C,O,O'),
-    ('sulfino', 'C,O|S|O|H'),
-    ('sulfo', 'C,O,O|S|O|H'),
-    ('thiocyanate', 'C|S|C|N'),
-    ('isothiocyanate', 'C|N|C|S'),
-    ('carbonothioyl', '%|J|C|S,J'),
-
-    # Groups containing phosphorus
-    ('phosphino', '%|C|P|C{2}'),
-    ('phosphono', '%|C|P|O{3}'),
-    ('phosphate', 'C|O|P|O{3}'),
-
-    # Groups containing boron
-    ('borono', '%|C|B|O{2}'),
-)
-
 NEIGHBOUR_SEPARATOR = ','
 
 def join_neighbours(neighbours):
@@ -123,6 +50,7 @@ class FragmentDihedral(object):
     )
 
     def __init__(self, dihedral_string=None, atom_list=None):
+        assert dihedral_string or atom_list, dict(dihedral_string=dihedral_string, atom_list=atom_list)
 
         if dihedral_string:
             splitted_string = split_group_str(dihedral_string)
@@ -380,10 +308,17 @@ PUT_SUBSTITUTION_PATTERN_FIRST = True
 
 LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX = (0, 1, 2, 3)
 
-def re_patterns(pattern, full_regex=False, flavour='sql'):
+def re_patterns(pattern, full_regex=False, flavour='sql', debug=False, metadata=None):
     components = split_group_str(pattern)
     assert len(components) == 4
     need_to_reverse_inner_atoms = (components[LEFT_ATOM_INDEX] != components[RIGHT_ATOM_INDEX])
+
+    if debug:
+        print metadata
+        print 'need_to_reverse_inner_atoms: {0}'.format(need_to_reverse_inner_atoms)
+        print components[LEFT_ATOM_INDEX]
+        print components[RIGHT_ATOM_INDEX]
+        print
 
     left_neighbour_groups, right_neighbour_groups = map(
         lambda index: split_neighbour_str(components[index]),
@@ -414,14 +349,15 @@ def re_patterns(pattern, full_regex=False, flavour='sql'):
 
     return patterns
 
-def re_pattern_matching_for(pattern, debug=False):
+def re_pattern_matching_for(pattern, debug=False, metadata=None):
     if not (has_substitution_pattern(pattern) or has_regex_pattern(pattern)):
         return lambda test_string: test_string == str(FragmentDihedral(pattern))
     else:
-        patterns = [FORMAT_UNESCAPED(re_pattern) for re_pattern in re_patterns(pattern, full_regex=True, flavour='re')]
+        patterns = [FORMAT_UNESCAPED(re_pattern) for re_pattern in re_patterns(pattern, full_regex=True, flavour='re', debug=debug, metadata=metadata)]
 
         def match_pattern_to(test_string):
             if debug:
+                print metadata
                 print pattern
                 print patterns
                 print test_string
