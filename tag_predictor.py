@@ -4,7 +4,7 @@ from API_client.api import API
 from fragment_dihedrals.fragment_dihedral import re_pattern_matching_for
 from fragment_dihedrals.chemistry import CHEMICAL_GROUPS
 
-DEBUG = False
+DEBUG = True
 
 CHEMICAL_GROUPS_MATCHING_PATTERNS = [
     (moiety, re_pattern_matching_for(pattern, debug=DEBUG, metadata=moiety))
@@ -16,7 +16,7 @@ def dihedrals(molecule):
 
 def tags_for_dihedral(dihedral_string):
     tags = [moiety for (moiety, matching_function) in CHEMICAL_GROUPS_MATCHING_PATTERNS if matching_function(dihedral_string)]
-    assert len(tags) <= 1, 'No dihedral should be matched by more than one rule: {0}'.format(tags)
+    assert len(tags) <= 1, 'No dihedral ({0}) should be matched by more than one rule: {1}'.format(dihedral_string, tags)
     return tags
 
 def tags_for_molecule(molecule):
@@ -48,6 +48,8 @@ def get_ignored_molids():
         return set()
 
 if __name__ == '__main__':
+    assert tags_for_dihedral('CL,C,H|C|C|H,H,H') == ['chloro']
+    #assert tags_for_dihedral('C|N|C|C,H') == ['']
     assert tags_for_dihedral('CL,CL,H|C|C|H,H,H') == ['dichloro']
     assert tags_for_dihedral('C,C|N|C|H,H,H') == ['amine III']
     assert tags_for_dihedral('H,H,H|C|C|O,C') == ['ketone']
