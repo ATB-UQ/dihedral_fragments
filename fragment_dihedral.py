@@ -171,11 +171,6 @@ class FragmentDihedral(object):
             elif len(self.neighbours_1) == len(self.neighbours_4):
                 # If identical central atoms, and same number of neighbours on both ends, try to resolve ambiguity one neighbour at a time
                 for (neighbour_1, neighbour_4) in zip(self.neighbours_1, self.neighbours_4):
-                    print neighbour_1
-                    print on_desc_number_electron_then_desc_valence(neighbour_1)
-                    print neighbour_4
-                    print on_desc_number_electron_then_desc_valence(neighbour_4)
-                    print on_desc_number_electron_then_desc_valence(neighbour_1) < on_desc_number_electron_then_desc_valence(neighbour_4)
                     if on_desc_number_electron_then_desc_valence(neighbour_1) < on_desc_number_electron_then_desc_valence(neighbour_4):
                         should_reverse = True
                         break
