@@ -14,12 +14,6 @@ def print_if_DEBUG(something):
     if DEBUG:
         print something
 
-def element_number(atom):
-    try:
-        return ELEMENT_NUMBERS[atom]
-    except:
-        return 999
-
 NEIGHBOUR_SEPARATOR = ','
 
 def join_neighbours(neighbours):
@@ -44,9 +38,83 @@ class Dihedral_Fragment_Matching_Pattern(object):
         self.atom_3 = splitted_string[2].upper()
         self.neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[3])]
 
+def has_regex_pattern(pattern):
+    assert ('$' not in pattern) and ('^' not in pattern)
+    return any([y in pattern for y in SQL_FULL_REGEX_CHARACTERS])
+
+REGEX_START_ANCHOR, REGEX_END_ANCHOR, REGEX_OR_OPERATOR = ('^', '$', '|')
+
+BACKSLASH = '\\'
+COMMA = ','
+ESCAPED_COMMA = ';'
+UNESCAPE_COMMA = lambda x: x.replace(ESCAPED_COMMA, COMMA)
+ATOM_CHARACTERS, MAX_ATOM_CHARACTERS = 'A-Z', 2
+VALENCE_CHARACTERS, MAX_VALENCE_CHARACTERS = '0-9', 1
+ONE_ATOM = '[' + ATOM_CHARACTERS + VALENCE_CHARACTERS + ']' + '{1,' + str(MAX_ATOM_CHARACTERS + MAX_VALENCE_CHARACTERS) + '}'
+ONE_NUMBER = '[0-9]'
+ANY_NUMBER_OF_ATOMS = '[' + ATOM_CHARACTERS + VALENCE_CHARACTERS + ESCAPED_COMMA + ']*'
+
+def REGEX_NOT(pattern):
+    return '[^(' + str(pattern) + ')]'
+
+def REGEX_GROUP(index):
+    return BACKSLASH + str(index)
+
+def REGEX_OR(*args):
+    return '(' + REGEX_OR_OPERATOR.join(args) + ')'
+
+def REGEX_ESCAPE(pattern, flavour='sql'):
+    if flavour == 'sql':
+        return BACKSLASH + str(pattern)
+        return BACKSLASH + BACKSLASH + str(pattern)
+    elif flavour == 're':
+        return '[' + str(pattern) + ']'
+    else:
+        raise Exception()
+
+def REGEX_AT_LEAST(pattern, escape_plus=True):
+    return str(pattern) + (BACKSLASH if escape_plus else '') + '+'
+
+def FORMAT_ESCAPED(pattern):
+    return pattern.replace('{', '{{').replace('}', '}}')
+
+def FORMAT_UNESCAPED(pattern):
+    return pattern.replace('{{', '{').replace('}}', '}')
+
+def NOT(pattern):
+    return '!' + str(pattern)
+
+def CAPTURE(pattern):
+    return '(' + str(pattern) + ')'
+
+def ESCAPE(pattern):
+    return BACKSLASH + str(pattern)
+
+def on_desc_number_electron_then_desc_valence(atom):
+    upper_atom = atom.upper()
+    match = re.search(
+        CAPTURE('[' + ATOM_CHARACTERS + ']') + CAPTURE('[' + VALENCE_CHARACTERS + ']'),
+        upper_atom,
+    )
+    if match:
+        element, valence = match.groups()
+        valence = int(valence)
+    else:
+        element, valence = upper_atom, 1
+    ASC = lambda x: x
+    try:
+        return (
+            ASC(ELEMENT_NUMBERS[element]),
+            ASC(valence),
+        )
+    except KeyError:
+        return (
+            999,
+        )
+
 class FragmentDihedral(object):
     HIGHEST_ATOMS_FIRST = dict(
-        key=lambda x: element_number(x),
+        key=on_desc_number_electron_then_desc_valence,
         reverse=True,
     )
 
@@ -93,20 +161,25 @@ class FragmentDihedral(object):
         other.neighbours_4.sort(**FragmentDihedral.HIGHEST_ATOMS_FIRST)
 
         # Compare the two central atoms and put the heavier one on the left
-        if element_number(other.atom_3) >  element_number(other.atom_2):
+        if on_desc_number_electron_then_desc_valence(other.atom_2) <  on_desc_number_electron_then_desc_valence(other.atom_3):
             should_reverse = True
-        elif element_number(other.atom_3) == element_number(other.atom_2):
+        elif on_desc_number_electron_then_desc_valence(other.atom_2) == on_desc_number_electron_then_desc_valence(other.atom_3):
             should_reverse = False
 
-            if len(self.neighbours_4) > len(self.neighbours_1):
+            if len(self.neighbours_1) < len(self.neighbours_4):
                 should_reverse = True
-            elif len(self.neighbours_4) == len(self.neighbours_1):
+            elif len(self.neighbours_1) == len(self.neighbours_4):
                 # If identical central atoms, and same number of neighbours on both ends, try to resolve ambiguity one neighbour at a time
                 for (neighbour_1, neighbour_4) in zip(self.neighbours_1, self.neighbours_4):
-                    if element_number(neighbour_4) > element_number(neighbour_1):
+                    print neighbour_1
+                    print on_desc_number_electron_then_desc_valence(neighbour_1)
+                    print neighbour_4
+                    print on_desc_number_electron_then_desc_valence(neighbour_4)
+                    print on_desc_number_electron_then_desc_valence(neighbour_1) < on_desc_number_electron_then_desc_valence(neighbour_4)
+                    if on_desc_number_electron_then_desc_valence(neighbour_1) < on_desc_number_electron_then_desc_valence(neighbour_4):
                         should_reverse = True
                         break
-                    elif element_number(neighbour_4) == element_number(neighbour_1):
+                    elif on_desc_number_electron_then_desc_valence(neighbour_1) == on_desc_number_electron_then_desc_valence(neighbour_4):
                         pass
                     else:
                         break
@@ -122,57 +195,6 @@ class FragmentDihedral(object):
     def reverse_dihedral(self):
         self.atom_2, self.atom_3 = self.atom_3, self.atom_2
         self.neighbours_1, self.neighbours_4 = self.neighbours_4, self.neighbours_1
-
-def has_regex_pattern(pattern):
-    assert ('$' not in pattern) and ('^' not in pattern)
-    return any([y in pattern for y in SQL_FULL_REGEX_CHARACTERS])
-
-REGEX_START_ANCHOR, REGEX_END_ANCHOR, REGEX_OR_OPERATOR = ('^', '$', '|')
-
-BACKSLASH = '\\'
-COMMA = ','
-ESCAPED_COMMA = ';'
-UNESCAPE_COMMA = lambda x: x.replace(ESCAPED_COMMA, COMMA)
-ONE_LETTER = '[A-Z]'
-ONE_ATOM = ONE_LETTER + '{1,2}'
-ONE_NUMBER = '[0-9]'
-ANY_NUMBER_OF_ATOMS = '[A-Z' + ESCAPED_COMMA + ']*'
-
-def REGEX_NOT(pattern):
-    return '[^(' + str(pattern) + ')]'
-
-def REGEX_GROUP(index):
-    return BACKSLASH + str(index)
-
-def REGEX_OR(*args):
-    return '(' + REGEX_OR_OPERATOR.join(args) + ')'
-
-def REGEX_ESCAPE(pattern, flavour='sql'):
-    if flavour == 'sql':
-        return BACKSLASH + str(pattern)
-        return BACKSLASH + BACKSLASH + str(pattern)
-    elif flavour == 're':
-        return '[' + str(pattern) + ']'
-    else:
-        raise Exception()
-
-def REGEX_AT_LEAST(pattern, escape_plus=True):
-    return str(pattern) + (BACKSLASH if escape_plus else '') + '+'
-
-def FORMAT_ESCAPED(pattern):
-    return pattern.replace('{', '{{').replace('}', '}}')
-
-def FORMAT_UNESCAPED(pattern):
-    return pattern.replace('{{', '{').replace('}}', '}')
-
-def NOT(pattern):
-    return '!' + str(pattern)
-
-def CAPTURE(pattern):
-    return '(' + str(pattern) + ')'
-
-def ESCAPE(pattern):
-    return BACKSLASH + str(pattern)
 
 Operator_Pattern = namedtuple('Operator_Pattern', 'pattern, replacement, substitution_type')
 
@@ -262,27 +284,6 @@ def split_on_atoms(group):
     atom_patterns = split_neighbour_str(group)
 
     return atom_patterns
-
-#    atoms = []
-#    acc = []
-#
-#    def discharge_acc():
-#        if acc is not []:
-#            atoms.append(join_neighbours(acc))
-#
-#    for atom_pattern in atom_patterns:
-#        print atom_pattern
-#        if not (re.search(ONE_LETTER, atom_pattern[0]) or re.search(ONE_LETTER, atom_pattern[-1])):
-#            acc.append(atom_pattern)
-#        else:
-#            discharge_acc()
-#            acc = []
-#            atoms.append(atom_pattern)
-#    discharge_acc()
-#
-#    print_if_DEBUG(atoms)
-#    print atoms
-#    return atoms
 
 def apply_regex_filters(string, debug=False, flavour='sql'):
     for (pattern, replacement, substitution_type) in regex_filters(flavour):
@@ -425,7 +426,6 @@ def sorted_components(component_index, component, left_permutation=(), right_per
         return component
 
 def sorted_components_list(component_list, permutation=()):
-
     sorting_dict = dict(
         zip(
             sorted(group_by(component_list, lambda x:x).keys()),
@@ -464,20 +464,19 @@ SYNTAX_HELP = Template('''
 
 def test_canonical_rep():
     test_cases = (
-        ('H,C,H|C|CL|C,H,C', 'C,C,H|CL|C|C,H,H'),
-        ('H,C,H|CL|CL|C,H,C', 'C,C,H|CL|CL|C,H,H'),
-        ('H,C,H|CL|CL|C,H,C,H', 'C,C,H,H|CL|CL|C,H,H'),
-        ('O|C|C|N,H', 'N,H|C|C|O'),
-        ('H,C,H|CL|CL|C,H,H,H', 'C,H,H,H|CL|CL|C,H,H'),
-        ('F,C|C|C|O,N', 'F,C|C|C|O,N'),
+        ('H,C4,H|SI|C|C2,H,C4', 'C4,H,H|SI|C|C4,C2,H'), # M(SI) > M(C)
+        ('H,C4,H|C|C|C4,H', 'C4,H,H|C|C|C4,H'), #M(C) == M(C), 3 > 2
+        ('H,C4,H|C|C|C3,H,H', 'C4,H,H|C|C|C3,H,H'), #M(C) == M(C), 3 ==3, 4 > 3
+        ('O2|C|C|N2,H', 'N2,H|C|C|O2'), # M(O) > M(N)
+        ('F,C4|C|C|O1,N3', 'F,C4|C|C|O1,N3'), # M(F) > M(O)
     )
 
     for (dihedral_string, solution) in test_cases:
         answer = str(FragmentDihedral(dihedral_string))
-        assert answer == solution, '"{0}" != "{1}"'.format(answer, solution)
+        assert answer == solution, '"{0}" (answer) != "{1}" (expected)'.format(answer, solution)
 
         cyclic_answer = str(FragmentDihedral(answer))
-        assert cyclic_answer == answer, '"{0}" != "{1}"'.format(cyclic_answer, answer)
+        assert cyclic_answer == answer, '"{0}" (answer) != "{1}" (expected)'.format(cyclic_answer, answer)
 
 def test_patterns():
     test_cases = (
@@ -500,7 +499,7 @@ def test_patterns():
 
 
 if __name__ == "__main__" :
-    if False:
+    if True:
         test_canonical_rep()
 
     if False:
