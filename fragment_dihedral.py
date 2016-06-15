@@ -90,8 +90,8 @@ def CAPTURE(pattern):
 def ESCAPE(pattern):
     return BACKSLASH + str(pattern)
 
-def on_desc_number_electron_then_desc_valence(atom):
-    upper_atom = atom.upper()
+def element_valence_for_atom(atom_desc):
+    upper_atom = atom_desc.upper()
     match = re.search(
         CAPTURE('[' + ATOM_CHARACTERS + ']') + CAPTURE('[' + VALENCE_CHARACTERS + ']'),
         upper_atom,
@@ -101,7 +101,11 @@ def on_desc_number_electron_then_desc_valence(atom):
         valence = int(valence)
     else:
         element, valence = upper_atom, 1
+    return (element, valence)
+
+def on_asc_number_electron_then_asc_valence(atom):
     ASC = lambda x: x
+    element, valence = element_valence_for_atom(atom)
     try:
         return (
             ASC(ELEMENT_NUMBERS[element]),
@@ -114,7 +118,7 @@ def on_desc_number_electron_then_desc_valence(atom):
 
 class FragmentDihedral(object):
     HIGHEST_ATOMS_FIRST = dict(
-        key=on_desc_number_electron_then_desc_valence,
+        key=on_asc_number_electron_then_asc_valence,
         reverse=True,
     )
 
@@ -161,9 +165,9 @@ class FragmentDihedral(object):
         other.neighbours_4.sort(**FragmentDihedral.HIGHEST_ATOMS_FIRST)
 
         # Compare the two central atoms and put the heavier one on the left
-        if on_desc_number_electron_then_desc_valence(other.atom_2) <  on_desc_number_electron_then_desc_valence(other.atom_3):
+        if on_asc_number_electron_then_asc_valence(other.atom_2) <  on_asc_number_electron_then_asc_valence(other.atom_3):
             should_reverse = True
-        elif on_desc_number_electron_then_desc_valence(other.atom_2) == on_desc_number_electron_then_desc_valence(other.atom_3):
+        elif on_asc_number_electron_then_asc_valence(other.atom_2) == on_asc_number_electron_then_asc_valence(other.atom_3):
             should_reverse = False
 
             if len(self.neighbours_1) < len(self.neighbours_4):
@@ -171,10 +175,10 @@ class FragmentDihedral(object):
             elif len(self.neighbours_1) == len(self.neighbours_4):
                 # If identical central atoms, and same number of neighbours on both ends, try to resolve ambiguity one neighbour at a time
                 for (neighbour_1, neighbour_4) in zip(self.neighbours_1, self.neighbours_4):
-                    if on_desc_number_electron_then_desc_valence(neighbour_1) < on_desc_number_electron_then_desc_valence(neighbour_4):
+                    if on_asc_number_electron_then_asc_valence(neighbour_1) < on_asc_number_electron_then_asc_valence(neighbour_4):
                         should_reverse = True
                         break
-                    elif on_desc_number_electron_then_desc_valence(neighbour_1) == on_desc_number_electron_then_desc_valence(neighbour_4):
+                    elif on_asc_number_electron_then_asc_valence(neighbour_1) == on_asc_number_electron_then_asc_valence(neighbour_4):
                         pass
                     else:
                         break
