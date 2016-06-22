@@ -1,8 +1,13 @@
+from collections import Iterable
 from jinja2 import Template
-from fragment_dihedral import CHEMICAL_GROUPS
+
+from chemistry import CHEMICAL_GROUPS
 
 def dihedral(pattern):
-    return '\\dihedral{' + protect(pattern) + '}'
+    if pattern:
+        return '\\dihedral{' + protect(pattern) + '}'
+    else:
+        return ''
 
 def protect(pattern):
     return pattern.replace('%', '\\%').replace('{', '\\{').replace('}', '\\}')
@@ -18,7 +23,20 @@ def latex_render_table(rows, row_formatters=None, indent=4, number_columns=1):
     if not row_formatters:
         row_formatters = [lambda x:str(x)]*row_length
 
-    assert len(rows) % number_columns == 0
+    if len(rows) % number_columns == 0:
+        extra_row = None
+    else:
+        padding_columns = len(rows) % number_columns
+        try:
+            empty_element = ['' for field in rows[0]]
+        except TypeError:
+            empty_element = ['']
+
+        extra_row = reduce(
+            lambda acc, e: acc + e,
+            [tuple(empty_element)]*(number_columns - padding_columns) + list(rows[-padding_columns:]),
+            (),
+        )
 
     boundary = len(rows) // number_columns
 
@@ -34,7 +52,7 @@ def latex_render_table(rows, row_formatters=None, indent=4, number_columns=1):
 {%- endfor %}
 \\end{tabular}
 ''').render(
-        rows=extended_rows,
+        rows=extended_rows + ([extra_row] if extra_row else []),
         dihedral=dihedral,
         process_row=lambda row: ' & '.join([formatter(field) for (field, formatter) in zip(row, row_formatters*number_columns)]),
         tabular_align='{' + '|'.join(['c' for x in range(row_length)]*number_columns) + '}'
