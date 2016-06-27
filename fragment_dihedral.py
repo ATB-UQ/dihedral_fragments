@@ -516,26 +516,31 @@ def test_patterns():
         print sql_pattern_matching_for(pattern)
         print
 
+def test_cyclic_fragments():
+    cyclic_fragment = FragmentDihedral(atom_list=(['H', 'H', 'C'], 'C', 'C', ['H', 'C', 'H'], ['21']))
+    assert str(cyclic_fragment) == 'C,H,H|C|C|C,H,H|00', cyclic_fragment
+
+def test_atom_list_init():
+    fragment = FragmentDihedral(atom_list=(['C'], 'C', 'C', ['C']))
+
+def test_misc():
+    dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
+    print dihedral_1
+    dihedral_2 = FragmentDihedral("C,H,H|C|C|C,C,H")
+    print dihedral_2
+    print dihedral_1 == dihedral_2
+    dihedral_3 = FragmentDihedral(atom_list=(['H', 'H'], 'C', 'C', ['Cl', 'Cl']))
+    print dihedral_3
+    print dihedral_3 == dihedral_2
 
 if __name__ == "__main__" :
-    fragment = FragmentDihedral(atom_list=(['C'], 'C', 'C', ['C']))
-    fragment = FragmentDihedral(atom_list=(['C'], 'C', 'C', ['C'], ['11']))
-
-    if True:
-        test_canonical_rep()
+    test_atom_list_init()
+    test_canonical_rep()
+    test_cyclic_fragments()
+    test_misc()
 
     if False:
         test_patterns()
-
-    if True:
-        dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
-        print dihedral_1
-        dihedral_2 = FragmentDihedral("C,H,H|C|C|C,C,H")
-        print dihedral_2
-        print dihedral_1 == dihedral_2
-        dihedral_3 = FragmentDihedral(atom_list=(['H', 'H'], 'C', 'C', ['Cl', 'Cl']))
-        print dihedral_3
-        print dihedral_3 == dihedral_2
 
     assert re_pattern_matching_for('Z,%|Z|Z|Z,%', debug=True)('C,H|C|C|C,H') == True
     assert re_pattern_matching_for('Z|Z|Z|Z,%', debug=True)('C,H|C|C|C,H') == False
