@@ -4,6 +4,7 @@ from itertools import permutations
 from jinja2 import Template
 import re
 from collections import namedtuple
+from operator import itemgetter
 
 from atb_helpers.iterables import group_by
 from pipeline.pipelineHelperFunctions import ELEMENT_NUMBERS
@@ -122,10 +123,6 @@ GROUP_INDICES = (0, 1, 2, 3, 4)
 LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX, CYCLES_INDEX = GROUP_INDICES
 
 class FragmentDihedral(object):
-    HIGHEST_ATOMS_FIRST = dict(
-        key=on_asc_number_electron_then_asc_valence,
-        reverse=True,
-    )
 
     def __init__(self, dihedral_string=None, atom_list=None):
         assert dihedral_string or atom_list, dict(dihedral_string=dihedral_string, atom_list=atom_list)
@@ -136,7 +133,14 @@ class FragmentDihedral(object):
             self.atom_2 = splitted_string[LEFT_ATOM_INDEX].upper()
             self.atom_3 = splitted_string[RIGHT_ATOM_INDEX].upper()
             self.neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[RIGHT_GROUP_INDEX])]
-            self.cycles = (split_neighbour_str(splitted_string[CYCLES_INDEX]) if len(splitted_string) == 5 else [])
+            self.cycles = (
+                map(
+                    int,
+                    split_neighbour_str(splitted_string[CYCLES_INDEX]),
+                )
+                if len(splitted_string) == 5
+                else []
+            )
         else:
             if len(atom_list) == 4:
                 self.neighbours_1, self.atom_2, self.atom_3, self.neighbours_4 = atom_list
@@ -168,7 +172,18 @@ class FragmentDihedral(object):
                 join_neighbours(self.neighbours_4),
             ]
             +
-            ([','.join(self.cycles)] if self.has_cycles() else [])
+            (
+                [
+                    ','.join(
+                        map(
+                            lambda (id_1, id_4): '{0}{1}'.format(id_1, id_4),
+                            self.cycles,
+                        ),
+                    ),
+                ]
+                if self.has_cycles()
+                else []
+            )
         )
 
     def __eq__(self, other):
@@ -181,10 +196,34 @@ class FragmentDihedral(object):
     def __canonical_rep__(self):
         other = copy(self)
 
-        # Order each neighbour list by alphabetical order
-        # WARNING: Keep in mind that maintaining order will be necessary for maintaining sterochemistry information
-        other.neighbours_1.sort(**FragmentDihedral.HIGHEST_ATOMS_FIRST)
-        other.neighbours_4.sort(**FragmentDihedral.HIGHEST_ATOMS_FIRST)
+        def sorted_neighbours_permutation_dict(neighbours):
+            sorted_neighbours = list(
+                sorted(
+                    enumerate(neighbours),
+                    key=lambda (i, neighbour): on_asc_number_electron_then_asc_valence(neighbour),
+                    reverse=True,
+                )
+            )
+            permutation_dict = dict(
+                [(i, j) for (j, (i, _)) in enumerate(sorted_neighbours)]
+            )
+            return (
+                map(itemgetter(1), sorted_neighbours),
+                permutation_dict,
+            )
+
+
+        def sort_neighbours_fix_cycles(fragment):
+            '''Order each neighbour list by alphabetical order, reordering the (possible) cycles to match those changes.'''
+            # WARNING: Keep in mind that maintaining order will be necessary for maintaining sterochemistry information
+            fragment.neighbours_1, permutation_1 = sorted_neighbours_permutation_dict(fragment.neighbours_1)
+            fragment.neighbours_4, permutation_4 = sorted_neighbours_permutation_dict(fragment.neighbours_4)
+            fragment.cycles = [
+                (permutation_1[neighbour_id_1], permutation_4[neighbour_id_4])
+                for (neighbour_id_1, neighbour_id_4) in self.cycles
+            ]
+
+        sort_neighbours_fix_cycles(other)
 
         # Compare the two central atoms and put the heavier one on the left
         if on_asc_number_electron_then_asc_valence(other.atom_2) <  on_asc_number_electron_then_asc_valence(other.atom_3):
@@ -216,6 +255,7 @@ class FragmentDihedral(object):
     def reverse_dihedral(self):
         self.atom_2, self.atom_3 = self.atom_3, self.atom_2
         self.neighbours_1, self.neighbours_4 = self.neighbours_4, self.neighbours_1
+        self.cycles = map(lambda x: x[::-1], self.cycles)
 
 Operator_Pattern = namedtuple('Operator_Pattern', 'pattern, replacement, substitution_type')
 
@@ -517,7 +557,8 @@ def test_patterns():
         print
 
 def test_cyclic_fragments():
-    cyclic_fragment = FragmentDihedral(atom_list=(['H', 'H', 'C'], 'C', 'C', ['H', 'C', 'H'], ['21']))
+    cyclic_fragment = FragmentDihedral(atom_list=(['H', 'H', 'C'], 'C', 'C', ['H', 'C', 'H'], [[2, 1]]))
+    print str(cyclic_fragment)
     assert str(cyclic_fragment) == 'C,H,H|C|C|C,H,H|00', cyclic_fragment
 
 def test_atom_list_init():
@@ -534,8 +575,8 @@ def test_misc():
     print dihedral_3 == dihedral_2
 
 if __name__ == "__main__" :
-    test_atom_list_init()
-    test_canonical_rep()
+    #test_atom_list_init()
+    #test_canonical_rep()
     test_cyclic_fragments()
     test_misc()
 
