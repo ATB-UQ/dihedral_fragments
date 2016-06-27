@@ -90,6 +90,8 @@ def CAPTURE(pattern):
 def ESCAPE(pattern):
     return BACKSLASH + str(pattern)
 
+NO_VALENCE = None
+
 def element_valence_for_atom(atom_desc):
     upper_atom = atom_desc.upper()
     match = re.search(
@@ -100,7 +102,7 @@ def element_valence_for_atom(atom_desc):
         element, valence = match.groups()
         valence = int(valence)
     else:
-        element, valence = upper_atom, 1
+        element, valence = upper_atom, NO_VALENCE
     return (element, valence)
 
 def on_asc_number_electron_then_asc_valence(atom):
