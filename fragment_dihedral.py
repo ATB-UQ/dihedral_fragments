@@ -118,6 +118,9 @@ def on_asc_number_electron_then_asc_valence(atom):
             999,
         )
 
+GROUP_INDICES = (0, 1, 2, 3, 4)
+LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX, CYCLES_INDEX = GROUP_INDICES
+
 class FragmentDihedral(object):
     HIGHEST_ATOMS_FIRST = dict(
         key=on_asc_number_electron_then_asc_valence,
@@ -129,12 +132,21 @@ class FragmentDihedral(object):
 
         if dihedral_string:
             splitted_string = split_group_str(dihedral_string)
-            self.neighbours_1 = [atom.upper() for atom in split_neighbour_str(splitted_string[0])]
-            self.atom_2 = splitted_string[1].upper()
-            self.atom_3 = splitted_string[2].upper()
-            self.neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[3])]
+            self.neighbours_1 = [atom.upper() for atom in split_neighbour_str(splitted_string[LEFT_GROUP_INDEX])]
+            self.atom_2 = splitted_string[LEFT_ATOM_INDEX].upper()
+            self.atom_3 = splitted_string[RIGHT_ATOM_INDEX].upper()
+            self.neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[RIGHT_GROUP_INDEX])]
+            self.cycles = (split_neighbour_str(splitted_string[CYCLES_INDEX]) if len(splitted_string) == 5 else [])
         else:
-            self.neighbours_1, self.atom_2, self.atom_3, self.neighbours_4 = atom_list
+            if len(atom_list) == 4:
+                self.neighbours_1, self.atom_2, self.atom_3, self.neighbours_4 = atom_list
+                self.cycles = []
+            elif len(atom_list) == 5:
+                self.neighbours_1, self.atom_2, self.atom_3, self.neighbours_4, self.cycles = atom_list
+            else:
+                raise Exception('Wrong length of atom_list: {0}'.format(atom_list))
+
+        assert len(self.cycles) <= 1, 'Only monocycles are supported at the moment: {0}'.format(self.cycles)
 
         canonical_rep = self.__canonical_rep__()
 
@@ -142,13 +154,21 @@ class FragmentDihedral(object):
         self.atom_2 = canonical_rep.atom_2
         self.atom_3 = canonical_rep.atom_3
         self.neighbours_4 = canonical_rep.neighbours_4
+        self.cycles = canonical_rep.cycles
+
+    def has_cycles(self):
+        return bool(self.cycles)
 
     def __str__(self):
-        return "{neighbours_1}|{atom_2}|{atom_3}|{neighbours_4}".format(
-            neighbours_1=join_neighbours(self.neighbours_1),
-            atom_2=self.atom_2,
-            atom_3=self.atom_3,
-            neighbours_4=join_neighbours(self.neighbours_4),
+        return join_groups(
+            [
+                join_neighbours(self.neighbours_1),
+                self.atom_2,
+                self.atom_3,
+                join_neighbours(self.neighbours_4),
+            ]
+            +
+            ([','.join(self.cycles)] if self.has_cycles() else [])
         )
 
     def __eq__(self, other):
@@ -329,8 +349,6 @@ TRUE_OR_FALSE = [False, True]
 FALSE = [False]
 PUT_SUBSTITUTION_PATTERN_FIRST = True
 
-LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX = (0, 1, 2, 3)
-
 def re_patterns(pattern, full_regex=False, flavour='sql', debug=False, metadata=None):
     components = split_group_str(pattern)
     assert len(components) == 4
@@ -500,13 +518,16 @@ def test_patterns():
 
 
 if __name__ == "__main__" :
+    fragment = FragmentDihedral(atom_list=(['C'], 'C', 'C', ['C']))
+    fragment = FragmentDihedral(atom_list=(['C'], 'C', 'C', ['C'], ['11']))
+
     if True:
         test_canonical_rep()
 
     if False:
         test_patterns()
 
-    if False:
+    if True:
         dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
         print dihedral_1
         dihedral_2 = FragmentDihedral("C,H,H|C|C|C,C,H")
