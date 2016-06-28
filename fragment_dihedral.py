@@ -120,6 +120,7 @@ def on_asc_number_electron_then_asc_valence(atom):
         )
 
 Cycle = namedtuple('Cycle', 'i, n, j')
+ALLOW_POLYCYCLES = False
 
 GROUP_INDICES = (0, 1, 2, 3, 4)
 LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX, CYCLES_INDEX = GROUP_INDICES
@@ -137,7 +138,7 @@ class FragmentDihedral(object):
             self.neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[RIGHT_GROUP_INDEX])]
             self.cycles = (
                 [
-                    map(int, cycle_str)
+                    Cycle(*map(int, cycle_str))
                     for cycle_str in
                     split_neighbour_str(splitted_string[CYCLES_INDEX])
                 ]
@@ -153,7 +154,8 @@ class FragmentDihedral(object):
             else:
                 raise Exception('Wrong length of atom_list: {0}'.format(atom_list))
 
-        #assert len(self.cycles) <= 1, 'Only monocycles are supported at the moment: {0}'.format(self.cycles)
+        if not ALLOW_POLYCYCLES:
+            assert len(self.cycles) <= 1, 'Only monocycles are supported at the moment: {0}'.format(self.cycles)
 
         canonical_rep = self.__canonical_rep__()
 
@@ -179,7 +181,7 @@ class FragmentDihedral(object):
                 [
                     ','.join(
                         map(
-                            lambda (id_1, id_4): '{0}{1}'.format(id_1, id_4),
+                            lambda cycle: ''.join(map(str, cycle)),
                             self.cycles,
                         ),
                     ),
@@ -222,8 +224,8 @@ class FragmentDihedral(object):
             fragment.neighbours_1, permutation_1 = sorted_neighbours_permutation_dict(fragment.neighbours_1)
             fragment.neighbours_4, permutation_4 = sorted_neighbours_permutation_dict(fragment.neighbours_4)
             fragment.cycles = [
-                (permutation_1[neighbour_id_1], permutation_4[neighbour_id_4])
-                for (neighbour_id_1, neighbour_id_4) in self.cycles
+                Cycle(permutation_1[neighbour_id_1], cycle_length, permutation_4[neighbour_id_4])
+                for (neighbour_id_1, cycle_length, neighbour_id_4) in self.cycles
             ]
 
         sort_neighbours_fix_cycles(other)
@@ -560,13 +562,14 @@ def test_patterns():
         print
 
 def test_cyclic_fragments():
-    cyclic_fragment = FragmentDihedral(atom_list=(['H', 'H', 'C'], 'C', 'C', ['H', 'C', 'H'], [[2, 1]]))
+    cyclic_fragment = FragmentDihedral(atom_list=(['H', 'H', 'C'], 'C', 'C', ['H', 'C', 'H'], [[2, 0, 1]]))
     print str(cyclic_fragment)
-    assert str(cyclic_fragment) == 'C,H,H|C|C|C,H,H|00', cyclic_fragment
+    assert str(cyclic_fragment) == 'C,H,H|C|C|C,H,H|000', cyclic_fragment
 
-    polycyclic_fragment = FragmentDihedral(atom_list=(['H', 'C', 'C'], 'C', 'C', ['C', 'C', 'H'], [[2, 1], [1, 0]]))
-    print str(polycyclic_fragment)
-    print FragmentDihedral(str(polycyclic_fragment))
+    if ALLOW_POLYCYCLES:
+        polycyclic_fragment = FragmentDihedral(atom_list=(['H', 'C', 'C'], 'C', 'C', ['C', 'C', 'H'], [[2, 0, 1], [1, 0, 0]]))
+        print str(polycyclic_fragment)
+        print FragmentDihedral(str(polycyclic_fragment))
 
 def test_atom_list_init():
     fragment = FragmentDihedral(atom_list=(['C'], 'C', 'C', ['C']))
