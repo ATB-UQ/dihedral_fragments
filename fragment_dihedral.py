@@ -119,6 +119,8 @@ def on_asc_number_electron_then_asc_valence(atom):
             999,
         )
 
+Cycle = namedtuple('Cycle', 'i, n, j')
+
 GROUP_INDICES = (0, 1, 2, 3, 4)
 LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX, CYCLES_INDEX = GROUP_INDICES
 
@@ -134,10 +136,11 @@ class FragmentDihedral(object):
             self.atom_3 = splitted_string[RIGHT_ATOM_INDEX].upper()
             self.neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[RIGHT_GROUP_INDEX])]
             self.cycles = (
-                map(
-                    int,
-                    split_neighbour_str(splitted_string[CYCLES_INDEX]),
-                )
+                [
+                    map(int, cycle_str)
+                    for cycle_str in
+                    split_neighbour_str(splitted_string[CYCLES_INDEX])
+                ]
                 if len(splitted_string) == 5
                 else []
             )
@@ -150,7 +153,7 @@ class FragmentDihedral(object):
             else:
                 raise Exception('Wrong length of atom_list: {0}'.format(atom_list))
 
-        assert len(self.cycles) <= 1, 'Only monocycles are supported at the moment: {0}'.format(self.cycles)
+        #assert len(self.cycles) <= 1, 'Only monocycles are supported at the moment: {0}'.format(self.cycles)
 
         canonical_rep = self.__canonical_rep__()
 
@@ -560,6 +563,10 @@ def test_cyclic_fragments():
     cyclic_fragment = FragmentDihedral(atom_list=(['H', 'H', 'C'], 'C', 'C', ['H', 'C', 'H'], [[2, 1]]))
     print str(cyclic_fragment)
     assert str(cyclic_fragment) == 'C,H,H|C|C|C,H,H|00', cyclic_fragment
+
+    polycyclic_fragment = FragmentDihedral(atom_list=(['H', 'C', 'C'], 'C', 'C', ['C', 'C', 'H'], [[2, 1], [1, 0]]))
+    print str(polycyclic_fragment)
+    print FragmentDihedral(str(polycyclic_fragment))
 
 def test_atom_list_init():
     fragment = FragmentDihedral(atom_list=(['C'], 'C', 'C', ['C']))
