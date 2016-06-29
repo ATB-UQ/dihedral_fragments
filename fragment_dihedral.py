@@ -120,7 +120,6 @@ def on_asc_number_electron_then_asc_valence(atom):
         )
 
 Cycle = namedtuple('Cycle', 'i, n, j')
-ALLOW_POLYCYCLES = False
 
 GROUP_INDICES = (0, 1, 2, 3, 4)
 LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX, CYCLES_INDEX = GROUP_INDICES
@@ -151,11 +150,9 @@ class FragmentDihedral(object):
                 self.cycles = []
             elif len(atom_list) == 5:
                 self.neighbours_1, self.atom_2, self.atom_3, self.neighbours_4, self.cycles = atom_list
+                self.cycles = map(lambda c: Cycle(*c), self.cycles)
             else:
                 raise Exception('Wrong length of atom_list: {0}'.format(atom_list))
-
-        if not ALLOW_POLYCYCLES:
-            assert len(self.cycles) <= 1, 'Only monocycles are supported at the moment: {0}'.format(self.cycles)
 
         canonical_rep = self.__canonical_rep__()
 
@@ -218,7 +215,7 @@ class FragmentDihedral(object):
             )
 
 
-        def sort_neighbours_fix_cycles(fragment):
+        def sort_neighbours_renumber_cycles(fragment):
             '''Order each neighbour list by alphabetical order, reordering the (possible) cycles to match those changes.'''
             # WARNING: Keep in mind that maintaining order will be necessary for maintaining sterochemistry information
             fragment.neighbours_1, permutation_1 = sorted_neighbours_permutation_dict(fragment.neighbours_1)
@@ -228,7 +225,36 @@ class FragmentDihedral(object):
                 for (neighbour_id_1, cycle_length, neighbour_id_4) in self.cycles
             ]
 
-        sort_neighbours_fix_cycles(other)
+        def canonise_cycles(fragment):
+            if len(fragment.cycles) in (0, 1):
+                pass
+            elif len(fragment.cycles) == 2:
+                cycle_0, cycle_1 = fragment.cycles
+                should_order_left = (fragment.neighbours_1[cycle_0.i] == fragment.neighbours_1[cycle_1.i])
+                should_order_right = (fragment.neighbours_4[cycle_0.j] == fragment.neighbours_4[cycle_1.j])
+                fragment.cycles = [
+                    Cycle(
+                        min(cycle_0.i, cycle_1.i) if should_order_left else cycle_0.i,
+                        min(cycle_0.n, cycle_1.n),
+                        min(cycle_0.j, cycle_1.j) if should_order_right else cycle_0.j,
+                    ),
+                    Cycle(
+                        max(cycle_0.i, cycle_1.i) if should_order_left else cycle_1.i,
+                        max(cycle_0.n, cycle_1.n),
+                        max(cycle_0.j, cycle_1.j) if should_order_right else cycle_1.j,
+                    ),
+                ]
+            else:
+                raise AssertionError('Only mono and bicycles are allowed at the moment (cycles={0}).'.format(fragment.cycles))
+
+        def order_cycles(fragment):
+            fragment.cycles.sort(
+                key=lambda cycle: (cycle.n, cycle.i, cycle.j),
+            )
+
+        sort_neighbours_renumber_cycles(other)
+        canonise_cycles(other)
+        order_cycles(other)
 
         # Compare the two central atoms and put the heavier one on the left
         if on_asc_number_electron_then_asc_valence(other.atom_2) <  on_asc_number_electron_then_asc_valence(other.atom_3):
@@ -566,10 +592,27 @@ def test_cyclic_fragments():
     print str(cyclic_fragment)
     assert str(cyclic_fragment) == 'C,H,H|C|C|C,H,H|000', cyclic_fragment
 
-    if ALLOW_POLYCYCLES:
-        polycyclic_fragment = FragmentDihedral(atom_list=(['H', 'C', 'C'], 'C', 'C', ['C', 'C', 'H'], [[2, 0, 1], [1, 0, 0]]))
-        print str(polycyclic_fragment)
-        print FragmentDihedral(str(polycyclic_fragment))
+    polycyclic_fragment, answer = FragmentDihedral(atom_list=(['H', 'C', 'C'], 'C', 'C', ['C', 'C', 'H'], [[2, 2, 1], [1, 3, 0]])), 'C,C,H|C|C|C,C,H|020,131'
+    print str(polycyclic_fragment)
+    assert str(polycyclic_fragment) == answer, '{0} != {1} (expected)'.format(
+        str(polycyclic_fragment),
+        answer,
+    )
+    print FragmentDihedral(str(polycyclic_fragment))
+
+    polycyclic_fragment, answer = FragmentDihedral(atom_list=(['H', 'N', 'O'], 'C', 'C', ['C', 'C', 'H'], [[2, 2, 1], [1, 3, 0]])), 'C,C,H|C|C|O,N,H|020,131'
+    print str(polycyclic_fragment)
+    assert str(polycyclic_fragment) == answer, '{0} != {1} (expected)'.format(
+        str(polycyclic_fragment),
+        answer,
+    )
+    print FragmentDihedral(str(polycyclic_fragment))
+
+    try:
+        FragmentDihedral('C,C,C|C|C|C,C,C|000,101,202')
+        raise Exception('This should have failed.')
+    except AssertionError:
+        print 'N=3 rings failed as expected.'
 
 def test_atom_list_init():
     fragment = FragmentDihedral(atom_list=(['C'], 'C', 'C', ['C']))
