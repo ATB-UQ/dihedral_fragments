@@ -245,7 +245,29 @@ class FragmentDihedral(object):
                     ),
                 ]
             else:
-                raise AssertionError('Only mono and bicycles are allowed at the moment (cycles={0}).'.format(fragment.cycles))
+                Is, Ns, Js = zip(*self.cycles)
+                should_order = dict(
+                    [
+                        (direction, len(set(neighbours)) == 1)
+                        for (direction, neighbours) in zip(
+                            ('left', 'right'),
+                            (fragment.neighbours_1, fragment.neighbours_4),
+                        )
+                    ],
+                )
+
+                assert all(should_order.values()), 'Only symmetric environments are allowed for N-cycles where N >= 3 (cycles={0}).'.format(fragment.cycles)
+
+                fragment.cycles = [
+                    Cycle(i, n, j)
+                    for (i, n, j) in
+                    zip(
+                        *map(
+                            sorted,
+                            (Is, Ns, Js),
+                        )
+                    )
+                ]
 
         def order_cycles(fragment):
             fragment.cycles.sort(
@@ -608,11 +630,13 @@ def test_cyclic_fragments():
     )
     print FragmentDihedral(str(polycyclic_fragment))
 
+    assert str(FragmentDihedral('C,C,C|C|C|C,C,C|002,101,200')) == 'C,C,C|C|C|C,C,C|000,101,202'
+
     try:
-        FragmentDihedral('C,C,C|C|C|C,C,C|000,101,202')
+        FragmentDihedral('C,C,N|C|C|C,C,C|002,101,200')
         raise Exception('This should have failed.')
     except AssertionError:
-        print 'N=3 rings failed as expected.'
+        print 'Non-symmetric N=3 rings failed as expected.'
 
 def test_atom_list_init():
     fragment = FragmentDihedral(atom_list=(['C'], 'C', 'C', ['C']))
