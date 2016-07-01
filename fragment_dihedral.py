@@ -120,6 +120,9 @@ def on_asc_number_electron_then_asc_valence(atom):
         )
 
 Cycle = namedtuple('Cycle', 'i, n, j')
+def Small_Cycle(*args):
+    assert len(args) == 3, 'Cycles of length > 9 are not allowed.'
+    return Cycle(*args)
 
 GROUP_INDICES = (0, 1, 2, 3, 4)
 LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX, CYCLES_INDEX = GROUP_INDICES
@@ -137,7 +140,7 @@ class FragmentDihedral(object):
             self.neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[RIGHT_GROUP_INDEX])]
             self.cycles = (
                 [
-                    Cycle(*map(int, cycle_str))
+                    Small_Cycle(*map(int, cycle_str))
                     for cycle_str in
                     split_neighbour_str(splitted_string[CYCLES_INDEX])
                 ]
@@ -150,7 +153,7 @@ class FragmentDihedral(object):
                 self.cycles = []
             elif len(atom_list) == 5:
                 self.neighbours_1, self.atom_2, self.atom_3, self.neighbours_4, self.cycles = atom_list
-                self.cycles = map(lambda c: Cycle(*c), self.cycles)
+                self.cycles = map(lambda c: Small_Cycle(*c), self.cycles)
             else:
                 raise Exception('Wrong length of atom_list: {0}'.format(atom_list))
 
@@ -637,6 +640,12 @@ def test_cyclic_fragments():
         raise Exception('This should have failed.')
     except AssertionError:
         print 'Non-symmetric N=3 rings failed as expected.'
+
+    try:
+        FragmentDihedral('C,C,C|C|C|C,C,C|0100')
+        raise Exception('This should have failed.')
+    except AssertionError:
+        print 'Rings length > 9 failed as expected.'
 
 def test_atom_list_init():
     fragment = FragmentDihedral(atom_list=(['C'], 'C', 'C', ['C']))
