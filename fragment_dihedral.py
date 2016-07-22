@@ -287,11 +287,11 @@ class FragmentDihedral(object):
         elif on_asc_number_electron_then_asc_valence(other.atom_2) == on_asc_number_electron_then_asc_valence(other.atom_3):
             should_reverse = False
 
-            if len(self.neighbours_1) < len(self.neighbours_4):
+            if len(other.neighbours_1) < len(other.neighbours_4):
                 should_reverse = True
-            elif len(self.neighbours_1) == len(self.neighbours_4):
+            elif len(other.neighbours_1) == len(other.neighbours_4):
                 # If identical central atoms, and same number of neighbours on both ends, try to resolve ambiguity one neighbour at a time
-                for (neighbour_1, neighbour_4) in zip(self.neighbours_1, self.neighbours_4):
+                for (neighbour_1, neighbour_4) in zip(other.neighbours_1, other.neighbours_4):
                     if on_asc_number_electron_then_asc_valence(neighbour_1) < on_asc_number_electron_then_asc_valence(neighbour_4):
                         should_reverse = True
                         break
@@ -662,7 +662,7 @@ def test_misc():
 
 if __name__ == "__main__" :
     #test_atom_list_init()
-    #test_canonical_rep()
+    test_canonical_rep()
     test_cyclic_fragments()
     test_misc()
 
