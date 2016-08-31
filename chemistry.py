@@ -74,10 +74,10 @@ CHEMICAL_GROUPS = (
     ('borono', '%|C|B|O{2}'),
 )
 
-CHEMICAL_GROUPS = map(
-    lambda (moiety, pattern): (moiety, str(FragmentDihedral(dihedral_string=pattern))),
+CHEMICAL_GROUPS = list(map(
+    lambda moiety_pattern: (moiety_pattern[0], str(FragmentDihedral(dihedral_string=moiety_pattern[1]))),
     CHEMICAL_GROUPS,
-)
+))
 
 if __name__ == '__main__':
-    print CHEMICAL_GROUPS
+    print(CHEMICAL_GROUPS)

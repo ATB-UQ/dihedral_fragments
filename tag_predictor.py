@@ -29,7 +29,7 @@ def tags_for_molecule(molecule):
     )
 
 def yes_or_no(query):
-    choice = raw_input(query)
+    choice = input(query)
     if choice == 'y':
        return True
     elif choice == 'n':
@@ -69,23 +69,23 @@ if __name__ == '__main__':
         if molecule.molid in ignored_molids:
             continue
 
-        print molecule
+        print(molecule)
         new_tags = tags_for_molecule(molecule)
         old_tags = set(molecule.tags) - DATA_SETS_TAGS
 
         if old_tags != new_tags:
-            print 'Old tags are: {0}'.format(list(old_tags))
-            print 'New tags are: {0}'.format(list(new_tags))
+            print('Old tags are: {0}'.format(list(old_tags)))
+            print('New tags are: {0}'.format(list(new_tags)))
 
             try:
                 if yes_or_no('Add those ({0}) tags ?'.format(new_tags - old_tags)):
-                    print 'Adding new tags ...'
+                    print('Adding new tags ...')
                     for tag_name in new_tags - old_tags:
-                        print molecule.tag(tag_name=tag_name)
-                    print 'Successfully added new tags'
+                        print(molecule.tag(tag_name=tag_name))
+                    print('Successfully added new tags')
                 else:
                     fh.write(str(molecule.molid) + '\n')
             except KeyboardInterrupt:
                 fh.close()
                 raise
-        print
+        print()

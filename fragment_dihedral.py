@@ -13,7 +13,7 @@ DEBUG = False
 
 def print_if_DEBUG(something):
     if DEBUG:
-        print something
+        print(something)
 
 NEIGHBOUR_SEPARATOR = ','
 
@@ -140,7 +140,7 @@ class FragmentDihedral(object):
             self.neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[RIGHT_GROUP_INDEX])]
             self.cycles = (
                 [
-                    Small_Cycle(*map(int, cycle_str))
+                    Small_Cycle(*list(map(int, cycle_str)))
                     for cycle_str in
                     split_neighbour_str(splitted_string[CYCLES_INDEX])
                 ]
@@ -153,7 +153,7 @@ class FragmentDihedral(object):
                 self.cycles = []
             elif len(atom_list) == 5:
                 self.neighbours_1, self.atom_2, self.atom_3, self.neighbours_4, self.cycles = atom_list
-                self.cycles = map(lambda c: Small_Cycle(*c), self.cycles)
+                self.cycles = [Small_Cycle(*c) for c in self.cycles]
             else:
                 raise Exception('Wrong length of atom_list: {0}'.format(atom_list))
 
@@ -180,10 +180,10 @@ class FragmentDihedral(object):
             (
                 [
                     ','.join(
-                        map(
+                        list(map(
                             lambda cycle: ''.join(map(str, cycle)),
                             self.cycles,
-                        ),
+                        )),
                     ),
                 ]
                 if self.has_cycles()
@@ -205,7 +205,7 @@ class FragmentDihedral(object):
             sorted_neighbours = list(
                 sorted(
                     enumerate(neighbours),
-                    key=lambda (i, neighbour): on_asc_number_electron_then_asc_valence(neighbour),
+                    key=lambda i_neighbour: on_asc_number_electron_then_asc_valence(i_neighbour[1]),
                     reverse=True,
                 )
             )
@@ -213,7 +213,7 @@ class FragmentDihedral(object):
                 [(i, j) for (j, (i, _)) in enumerate(sorted_neighbours)]
             )
             return (
-                map(itemgetter(1), sorted_neighbours),
+                list(map(itemgetter(1), sorted_neighbours)),
                 permutation_dict,
             )
 
@@ -248,7 +248,7 @@ class FragmentDihedral(object):
                     ),
                 ]
             else:
-                Is, Ns, Js = zip(*self.cycles)
+                Is, Ns, Js = list(zip(*self.cycles))
                 should_order = dict(
                     [
                         (direction, len(set(neighbours)) == 1)
@@ -265,10 +265,10 @@ class FragmentDihedral(object):
                     Cycle(i, n, j)
                     for (i, n, j) in
                     zip(
-                        *map(
+                        *list(map(
                             sorted,
                             (Is, Ns, Js),
-                        )
+                        ))
                     )
                 ]
 
@@ -311,7 +311,7 @@ class FragmentDihedral(object):
     def reverse_dihedral(self):
         self.atom_2, self.atom_3 = self.atom_3, self.atom_2
         self.neighbours_1, self.neighbours_4 = self.neighbours_4, self.neighbours_1
-        self.cycles = map(lambda x: x[::-1], self.cycles)
+        self.cycles = [x[::-1] for x in self.cycles]
 
 Operator_Pattern = namedtuple('Operator_Pattern', 'pattern, replacement, substitution_type')
 
@@ -344,10 +344,10 @@ OPERATORS = (
     ),
 )
 
-OPERATORS = map(
+OPERATORS = list(map(
     lambda x: Operator_Pattern(*x),
     OPERATORS,
-)
+))
 
 def regex_filters(flavour='sql'):
     return [
@@ -417,19 +417,19 @@ def apply_regex_filters(string, debug=False, flavour='sql'):
             matches = re.findall(general_pattern, string)
             if matches:
                 if debug:
-                    print matches
+                    print(matches)
                 for match in matches:
                     tailored_pattern = pattern(*match)
                     mapped_replacement = replacement(*match)
                     if debug:
-                        print tailored_pattern, match
-                        print mapped_replacement
+                        print(tailored_pattern, match)
+                        print(mapped_replacement)
                     string = re.sub(tailored_pattern, mapped_replacement, string)
         else:
             raise Exception('Wrong substitution_type')
 
         if debug:
-            print [pattern, replacement, old_string], string
+            print([pattern, replacement, old_string], string)
     print_if_DEBUG(string)
     return UNESCAPE_COMMA(substitute_atoms_in_pattern(string, flavour=flavour))
 
@@ -448,24 +448,24 @@ PUT_SUBSTITUTION_PATTERN_FIRST = True
 def re_patterns(pattern, full_regex=False, flavour='sql', debug=False, metadata=None):
     components = split_group_str(pattern)
     assert len(components) == 4
-    need_to_reverse_inner_atoms = (components[LEFT_ATOM_INDEX] == components[RIGHT_ATOM_INDEX]) or any([x in ATOM_CATEGORIES.keys() for x in (components[LEFT_ATOM_INDEX], components[RIGHT_ATOM_INDEX])])
+    need_to_reverse_inner_atoms = (components[LEFT_ATOM_INDEX] == components[RIGHT_ATOM_INDEX]) or any([x in list(ATOM_CATEGORIES.keys()) for x in (components[LEFT_ATOM_INDEX], components[RIGHT_ATOM_INDEX])])
 
     if debug:
-        print
-        print metadata
-        print 'need_to_reverse_inner_atoms: {0}'.format(need_to_reverse_inner_atoms)
-        print components[LEFT_ATOM_INDEX]
-        print components[RIGHT_ATOM_INDEX]
+        print()
+        print(metadata)
+        print('need_to_reverse_inner_atoms: {0}'.format(need_to_reverse_inner_atoms))
+        print(components[LEFT_ATOM_INDEX])
+        print(components[RIGHT_ATOM_INDEX])
 
-    left_neighbour_groups, right_neighbour_groups = map(
+    left_neighbour_groups, right_neighbour_groups = list(map(
         lambda index: split_neighbour_str(components[index]),
         (LEFT_GROUP_INDEX, RIGHT_GROUP_INDEX),
-    )
+    ))
 
-    left_permutations, right_permutations = map(
-        lambda group: permutations(range(len(group_by(group, key=lambda x:x)))),
+    left_permutations, right_permutations = list(map(
+        lambda group: permutations(list(range(len(group_by(group, key=lambda x:x))))),
         (left_neighbour_groups, right_neighbour_groups),
-    )
+    ))
 
     patterns = [
         correct_pattern(
@@ -494,12 +494,12 @@ def re_pattern_matching_for(pattern, debug=False, metadata=None):
 
         def match_pattern_to(test_string):
             if debug:
-                print metadata
-                print pattern
-                print patterns
-                print test_string
-                print any([re.search(match_pattern, test_string) for match_pattern in patterns])
-                print
+                print(metadata)
+                print(pattern)
+                print(patterns)
+                print(test_string)
+                print(any([re.search(match_pattern, test_string) for match_pattern in patterns]))
+                print()
             return any([re.search(match_pattern, test_string) for match_pattern in patterns])
 
         return match_pattern_to
@@ -542,10 +542,10 @@ def sorted_components(component_index, component, left_permutation=(), right_per
 
 def sorted_components_list(component_list, permutation=()):
     sorting_dict = dict(
-        zip(
+        list(zip(
             sorted(group_by(component_list, lambda x:x).keys()),
             permutation,
-        )
+        ))
     )
 
     return sorted(
@@ -574,7 +574,7 @@ SYNTAX_HELP = Template('''
   </ul>
 </p>
 ''').render(
-    ATOM_CATEGORIES=ATOM_CATEGORIES.items(),
+    ATOM_CATEGORIES=list(ATOM_CATEGORIES.items()),
 )
 
 def test_canonical_rep():
@@ -608,30 +608,30 @@ def test_patterns():
     )
 
     for pattern in test_cases:
-        print pattern
-        print sql_pattern_matching_for(pattern)
-        print
+        print(pattern)
+        print(sql_pattern_matching_for(pattern))
+        print()
 
 def test_cyclic_fragments():
     cyclic_fragment = FragmentDihedral(atom_list=(['H', 'H', 'C'], 'C', 'C', ['H', 'C', 'H'], [[2, 0, 1]]))
-    print str(cyclic_fragment)
+    print(str(cyclic_fragment))
     assert str(cyclic_fragment) == 'C,H,H|C|C|C,H,H|000', cyclic_fragment
 
     polycyclic_fragment, answer = FragmentDihedral(atom_list=(['H', 'C', 'C'], 'C', 'C', ['C', 'C', 'H'], [[2, 2, 1], [1, 3, 0]])), 'C,C,H|C|C|C,C,H|020,131'
-    print str(polycyclic_fragment)
+    print(str(polycyclic_fragment))
     assert str(polycyclic_fragment) == answer, '{0} != {1} (expected)'.format(
         str(polycyclic_fragment),
         answer,
     )
-    print FragmentDihedral(str(polycyclic_fragment))
+    print(FragmentDihedral(str(polycyclic_fragment)))
 
     polycyclic_fragment, answer = FragmentDihedral(atom_list=(['H', 'N', 'O'], 'C', 'C', ['C', 'C', 'H'], [[2, 2, 1], [1, 3, 0]])), 'C,C,H|C|C|O,N,H|020,131'
-    print str(polycyclic_fragment)
+    print(str(polycyclic_fragment))
     assert str(polycyclic_fragment) == answer, '{0} != {1} (expected)'.format(
         str(polycyclic_fragment),
         answer,
     )
-    print FragmentDihedral(str(polycyclic_fragment))
+    print(FragmentDihedral(str(polycyclic_fragment)))
 
     assert str(FragmentDihedral('C,C,C|C|C|C,C,C|002,101,200')) == 'C,C,C|C|C|C,C,C|000,101,202'
 
@@ -639,26 +639,26 @@ def test_cyclic_fragments():
         FragmentDihedral('C,C,N|C|C|C,C,C|002,101,200')
         raise Exception('This should have failed.')
     except AssertionError:
-        print 'Non-symmetric N=3 rings failed as expected.'
+        print('Non-symmetric N=3 rings failed as expected.')
 
     try:
         FragmentDihedral('C,C,C|C|C|C,C,C|0100')
         raise Exception('This should have failed.')
     except AssertionError:
-        print 'Rings length > 9 failed as expected.'
+        print('Rings length > 9 failed as expected.')
 
 def test_atom_list_init():
     fragment = FragmentDihedral(atom_list=(['C'], 'C', 'C', ['C']))
 
 def test_misc():
     dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
-    print dihedral_1
+    print(dihedral_1)
     dihedral_2 = FragmentDihedral("C,H,H|C|C|C,C,H")
-    print dihedral_2
-    print dihedral_1 == dihedral_2
+    print(dihedral_2)
+    print(dihedral_1 == dihedral_2)
     dihedral_3 = FragmentDihedral(atom_list=(['H', 'H'], 'C', 'C', ['Cl', 'Cl']))
-    print dihedral_3
-    print dihedral_3 == dihedral_2
+    print(dihedral_3)
+    print(dihedral_3 == dihedral_2)
 
 if __name__ == "__main__" :
     #test_atom_list_init()
@@ -675,7 +675,7 @@ if __name__ == "__main__" :
     assert re_pattern_matching_for('N,J|C|C|J{3}', debug=True)('N,H|C|C|C,H,H') == True
     assert re_pattern_matching_for('N,J|C|C|J{2}', debug=True)('N,H|C|C|C,H') == True
 
-    print re_pattern_matching_for('Z|Z|Z|Z', debug=True)
+    print(re_pattern_matching_for('Z|Z|Z|Z', debug=True))
 
-    print sql_pattern_matching_for('J{3}|C|C|J{3}')
+    print(sql_pattern_matching_for('J{3}|C|C|J{3}'))
 

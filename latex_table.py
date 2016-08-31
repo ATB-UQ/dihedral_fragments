@@ -1,7 +1,7 @@
 from collections import Iterable
 from jinja2 import Template
 
-from chemistry import CHEMICAL_GROUPS
+from .chemistry import CHEMICAL_GROUPS
 
 def dihedral(pattern):
     if pattern:
@@ -63,22 +63,22 @@ def latex_caption(caption, indent=4):
     return indent_str(r'\caption{' + caption + '}', indent)
 
 if __name__ == "__main__" :
-    print latex_render_table(
+    print(latex_render_table(
         rows=[(name, pattern) for (name, pattern) in CHEMICAL_GROUPS if pattern],
         row_formatters=(lambda x: x, lambda x: dihedral(x)),
         number_columns=3,
-    )
+    ))
 
-    from urllib2 import urlopen
+    from urllib.request import urlopen
     import json
     response = urlopen('https://atb.uq.edu.au/index.py?filter_0=40&tab=dihedral_fragments&format=json&items_per_page=30')
     top30 =  json.loads(response.read())['main']
 
-    print ''.join([
+    print(''.join([
         latex_caption(''),
         latex_render_table(
             rows=top30,
             row_formatters=(lambda x: dihedral(str(x)), lambda x: str(x)),
             number_columns=3,
         ),
-    ])
+    ]))

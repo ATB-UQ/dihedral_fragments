@@ -24,7 +24,7 @@ def is_monovalent(atom):
 def number_neighbours(atom):
     return [valence - 1 for valence in ATOM_VALENCES[atom]]
 
-ATOMS = ATOM_VALENCES.keys()
+ATOMS = list(ATOM_VALENCES.keys())
 CENTRAL_ATOMS = [atom for atom in ATOMS if not is_monovalent(atom)]
 
 FORBIDDEN_BONDS = (
@@ -55,7 +55,7 @@ def main():
                 d = str(FragmentDihedral(atom_list=(list(a), atom_2, atom_3, list(b))))
                 tags = tags_for_dihedral(d)
                 if len(tags) > 0:
-                    print d, tags
+                    print(d, tags)
 
 if __name__ == '__main__':
     main()
