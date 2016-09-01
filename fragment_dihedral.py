@@ -7,7 +7,7 @@ from collections import namedtuple
 from operator import itemgetter
 
 from atb_helpers.iterables import group_by
-from pipeline.pipelineHelperFunctions import ELEMENT_NUMBERS
+from atb_helpers.elements import ELEMENT_NUMBERS
 
 DEBUG = False
 
