@@ -127,6 +127,8 @@ def Small_Cycle(*args):
 GROUP_INDICES = (0, 1, 2, 3, 4)
 LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX, CYCLES_INDEX = GROUP_INDICES
 
+CHIRAL_MARKER = '*'
+
 class FragmentDihedral(object):
 
     def __init__(self, dihedral_string=None, atom_list=None):
@@ -168,13 +170,17 @@ class FragmentDihedral(object):
     def has_cycles(self):
         return bool(self.cycles)
 
-    def __str__(self):
+    def __str__(self, flag_chiral_sides=False):
         return join_groups(
             [
-                join_neighbours(self.neighbours_1),
+                join_neighbours(self.neighbours_1)
+                +
+                ('' if (not flag_chiral_sides or (flag_chiral_sides and not self.is_left_chiral())) else CHIRAL_MARKER),
                 self.atom_2,
                 self.atom_3,
-                join_neighbours(self.neighbours_4),
+                join_neighbours(self.neighbours_4)
+                +
+                ('' if (not flag_chiral_sides or (flag_chiral_sides and not self.is_right_chiral())) else CHIRAL_MARKER),
             ]
             +
             (
@@ -312,6 +318,15 @@ class FragmentDihedral(object):
         self.atom_2, self.atom_3 = self.atom_3, self.atom_2
         self.neighbours_1, self.neighbours_4 = self.neighbours_4, self.neighbours_1
         self.cycles = map(lambda x: x[::-1], self.cycles)
+
+    def is_left_chiral(self):
+        return len(set(self.neighbours_1)) == 3
+
+    def is_right_chiral(self):
+        return len(set(self.neighbours_4)) == 3
+
+    def is_chiral_fragment(self):
+        return (self.is_left_chiral() or self.is_right_chiral())
 
 Operator_Pattern = namedtuple('Operator_Pattern', 'pattern, replacement, substitution_type')
 
@@ -660,9 +675,15 @@ def test_misc():
     print dihedral_3
     print dihedral_3 == dihedral_2
 
+def test_chiral_str():
+    dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
+    print dihedral_1.__str__()
+    print dihedral_1.__str__(flag_chiral_sides=True)
+
 if __name__ == "__main__" :
     #test_atom_list_init()
     test_canonical_rep()
+    test_chiral_str()
     test_cyclic_fragments()
     test_misc()
 
