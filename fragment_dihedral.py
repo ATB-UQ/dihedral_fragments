@@ -173,14 +173,14 @@ class FragmentDihedral(object):
     def __str__(self, flag_chiral_sides=False):
         return join_groups(
             [
-                join_neighbours(self.neighbours_1)
+                join_neighbours(self.neighbours_1),
+                self.atom_2
                 +
                 ('' if (not flag_chiral_sides or (flag_chiral_sides and not self.is_left_chiral())) else CHIRAL_MARKER),
-                self.atom_2,
-                self.atom_3,
-                join_neighbours(self.neighbours_4)
+                self.atom_3
                 +
                 ('' if (not flag_chiral_sides or (flag_chiral_sides and not self.is_right_chiral())) else CHIRAL_MARKER),
+                join_neighbours(self.neighbours_4),
             ]
             +
             (
@@ -265,7 +265,10 @@ class FragmentDihedral(object):
                     ],
                 )
 
-                assert all(should_order.values()), 'Only symmetric environments are allowed for N-cycles where N >= 3 (cycles={0}).'.format(fragment.cycles)
+                assert all(should_order.values()), 'Only symmetric (all similar or all different) environments are allowed for N-cycles where N >= 3 (fragment={0}, cycles={1}).'.format(
+                    str(fragment),
+                    fragment.cycles,
+                )
 
                 fragment.cycles = [
                     Cycle(i, n, j)
@@ -277,6 +280,14 @@ class FragmentDihedral(object):
                         )
                     )
                 ]
+
+                def cycle_key(cycle):
+                    return(
+                        fragment.neighbours_1[cycle.i],
+                        len([1 for other_cycle in fragment.cycles if cycle.i == other_cycle.i]),
+                        fragment.neighbours_4[cycle.j],
+                        len([1 for other_cycle in fragment.cycles if cycle.j == other_cycle.j]),
+                    )
 
         def order_cycles(fragment):
             fragment.cycles.sort(
