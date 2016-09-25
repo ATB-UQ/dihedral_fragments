@@ -11,6 +11,8 @@ from pipeline.pipelineHelperFunctions import ELEMENT_NUMBERS
 
 DEBUG = False
 
+ENFORCE_CANONICAL_TRICYLIC = False
+
 def print_if_DEBUG(something):
     if DEBUG:
         print something
@@ -265,10 +267,11 @@ class FragmentDihedral(object):
                     ],
                 )
 
-                assert all(should_order.values()), 'Only symmetric (all similar or all different) environments are allowed for N-cycles where N >= 3 (fragment={0}, cycles={1}).'.format(
-                    str(fragment),
-                    fragment.cycles,
-                )
+                if ENFORCE_CANONICAL_TRICYLIC:
+                    assert all(should_order.values()), 'Only symmetric (all similar or all different) environments are allowed for N-cycles where N >= 3 (fragment={0}, cycles={1}).'.format(
+                        str(fragment),
+                        fragment.cycles,
+                    )
 
                 fragment.cycles = [
                     Cycle(i, n, j)
