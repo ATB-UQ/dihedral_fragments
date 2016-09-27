@@ -72,7 +72,7 @@ if __name__ == "__main__" :
     from urllib.request import urlopen
     import json
     response = urlopen('https://atb.uq.edu.au/index.py?filter_0=40&tab=dihedral_fragments&format=json&items_per_page=30')
-    top30 =  json.loads(response.read())['main']
+    top30 = json.loads(response.read())['main']
 
     print(''.join([
         latex_caption(''),

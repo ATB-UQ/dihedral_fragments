@@ -11,6 +11,8 @@ from atb_helpers.elements import ELEMENT_NUMBERS
 
 DEBUG = False
 
+ENFORCE_CANONICAL_TRICYLIC = False
+
 def print_if_DEBUG(something):
     if DEBUG:
         print(something)
@@ -127,6 +129,8 @@ def Small_Cycle(*args):
 GROUP_INDICES = (0, 1, 2, 3, 4)
 LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX, CYCLES_INDEX = GROUP_INDICES
 
+CHIRAL_MARKER = '*'
+
 class FragmentDihedral(object):
 
     def __init__(self, dihedral_string=None, atom_list=None):
@@ -168,12 +172,16 @@ class FragmentDihedral(object):
     def has_cycles(self):
         return bool(self.cycles)
 
-    def __str__(self):
+    def __str__(self, flag_chiral_sides=False):
         return join_groups(
             [
                 join_neighbours(self.neighbours_1),
-                self.atom_2,
-                self.atom_3,
+                self.atom_2
+                +
+                ('' if (not flag_chiral_sides or (flag_chiral_sides and not self.is_left_chiral())) else CHIRAL_MARKER),
+                self.atom_3
+                +
+                ('' if (not flag_chiral_sides or (flag_chiral_sides and not self.is_right_chiral())) else CHIRAL_MARKER),
                 join_neighbours(self.neighbours_4),
             ]
             +
@@ -259,7 +267,11 @@ class FragmentDihedral(object):
                     ],
                 )
 
-                assert all(should_order.values()), 'Only symmetric environments are allowed for N-cycles where N >= 3 (cycles={0}).'.format(fragment.cycles)
+                if ENFORCE_CANONICAL_TRICYLIC:
+                    assert all(should_order.values()), 'Only symmetric (all similar or all different) environments are allowed for N-cycles where N >= 3 (fragment={0}, cycles={1}).'.format(
+                        str(fragment),
+                        fragment.cycles,
+                    )
 
                 fragment.cycles = [
                     Cycle(i, n, j)
@@ -271,6 +283,14 @@ class FragmentDihedral(object):
                         ))
                     )
                 ]
+
+                def cycle_key(cycle):
+                    return(
+                        fragment.neighbours_1[cycle.i],
+                        len([1 for other_cycle in fragment.cycles if cycle.i == other_cycle.i]),
+                        fragment.neighbours_4[cycle.j],
+                        len([1 for other_cycle in fragment.cycles if cycle.j == other_cycle.j]),
+                    )
 
         def order_cycles(fragment):
             fragment.cycles.sort(
@@ -312,6 +332,15 @@ class FragmentDihedral(object):
         self.atom_2, self.atom_3 = self.atom_3, self.atom_2
         self.neighbours_1, self.neighbours_4 = self.neighbours_4, self.neighbours_1
         self.cycles = [x[::-1] for x in self.cycles]
+
+    def is_left_chiral(self):
+        return len(set(self.neighbours_1)) == 3
+
+    def is_right_chiral(self):
+        return len(set(self.neighbours_4)) == 3
+
+    def is_chiral_fragment(self):
+        return (self.is_left_chiral() or self.is_right_chiral())
 
 Operator_Pattern = namedtuple('Operator_Pattern', 'pattern, replacement, substitution_type')
 
@@ -660,9 +689,15 @@ def test_misc():
     print(dihedral_3)
     print(dihedral_3 == dihedral_2)
 
+def test_chiral_str():
+    dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
+    print dihedral_1.__str__()
+    print dihedral_1.__str__(flag_chiral_sides=True)
+
 if __name__ == "__main__" :
     #test_atom_list_init()
     test_canonical_rep()
+    test_chiral_str()
     test_cyclic_fragments()
     test_misc()
 

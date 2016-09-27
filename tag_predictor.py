@@ -29,7 +29,7 @@ def tags_for_molecule(molecule):
     )
 
 def yes_or_no(query):
-    choice = input(query)
+    choice = eval(input(query))
     if choice == 'y':
        return True
     elif choice == 'n':
