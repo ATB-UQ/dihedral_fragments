@@ -691,8 +691,8 @@ def test_misc():
 
 def test_chiral_str():
     dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
-    print dihedral_1.__str__()
-    print dihedral_1.__str__(flag_chiral_sides=True)
+    print(dihedral_1.__str__())
+    print(dihedral_1.__str__(flag_chiral_sides=True))
 
 if __name__ == "__main__" :
     #test_atom_list_init()
