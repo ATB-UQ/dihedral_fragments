@@ -1,5 +1,6 @@
 from collections import Iterable
 from jinja2 import Template
+from functools import reduce
 
 from .chemistry import CHEMICAL_GROUPS
 
