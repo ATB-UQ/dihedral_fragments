@@ -1,7 +1,7 @@
 from itertools import product, combinations_with_replacement
 
-from fragment_dihedrals.fragment_dihedral import FragmentDihedral, CHEMICAL_GROUPS, re_pattern_matching_for
-from fragment_dihedrals.tag_predictor import tags_for_dihedral
+from dihedral_fragments.fragment_dihedral import FragmentDihedral, CHEMICAL_GROUPS, re_pattern_matching_for
+from dihedral_fragments.tag_predictor import tags_for_dihedral
 
 MONOVALENT = (1,)
 

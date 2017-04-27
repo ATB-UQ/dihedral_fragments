@@ -1,8 +1,8 @@
 from sys import stderr
 
 from API_client.api import API
-from fragment_dihedrals.fragment_dihedral import re_pattern_matching_for
-from fragment_dihedrals.chemistry import CHEMICAL_GROUPS
+from dihedral_fragments.fragment_dihedral import re_pattern_matching_for
+from dihedral_fragments.chemistry import CHEMICAL_GROUPS
 
 DEBUG = True
 

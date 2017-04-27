@@ -1,4 +1,4 @@
-from fragment_dihedrals.fragment_dihedral import FragmentDihedral
+from dihedral_fragments.fragment_dihedral import FragmentDihedral
 
 CHEMICAL_GROUPS = (
     # Hydrocarbons

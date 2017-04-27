@@ -1,6 +1,6 @@
 from typing import List, Any, Optional
 
-from fragment_dihedrals.fragment_dihedral import GROUP_SEPARATOR, on_asc_number_electron_then_asc_valence, NEIGHBOUR_SEPARATOR
+from dihedral_fragments.fragment_dihedral import GROUP_SEPARATOR, on_asc_number_electron_then_asc_valence, NEIGHBOUR_SEPARATOR
 
 class Improper(object):
     def __init__(self, central: Optional[str] = None, neighbours: Optional[List[str]] = None, improper_str: Optional[str] = None) -> None:
