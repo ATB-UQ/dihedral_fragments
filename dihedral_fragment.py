@@ -5,45 +5,51 @@ from jinja2 import Template
 from re import search, sub, findall
 from collections import namedtuple
 from operator import itemgetter
-from typing import Optional
+from typing import Optional, Any, Tuple, Union, Sequence, NamedTuple, List, Callable
 
 from atb_helpers.iterables import group_by
 from atb_helpers.elements import ELEMENT_NUMBERS
+
+Dihedral_Fragment_Str = str
+
+Regular_Expression = str
+
+Dihedral_Matching_Pattern = str
 
 DEBUG = False
 
 ENFORCE_CANONICAL_TRICYLIC = False
 
-def print_if_DEBUG(something):
+def print_if_DEBUG(something: Any) -> None:
     if DEBUG:
         print(something)
 
 NEIGHBOUR_SEPARATOR = ','
 
-def join_neighbours(neighbours):
+def join_neighbours(neighbours: List[str]) -> str:
     return NEIGHBOUR_SEPARATOR.join(neighbours)
 
-def split_neighbour_str(neighbour_str):
+def split_neighbour_str(neighbour_str: str) -> List[str]:
     return neighbour_str.split(NEIGHBOUR_SEPARATOR)
 
 GROUP_SEPARATOR = '|'
 
-def join_groups(groups):
+def join_groups(groups: List[str]) -> str:
     return GROUP_SEPARATOR.join(groups)
 
-def split_group_str(group_str):
+def split_group_str(group_str: str) -> List[str]:
     return group_str.split(GROUP_SEPARATOR)
 
 class Dihedral_Fragment_Matching_Pattern(object):
-    def __init__(self, pattern_string: Optional[str] = None):
+    def __init__(self, pattern_string: Optional[str] = None) -> None:
         splitted_string = split_group_str(pattern_string)
         self.neighbours_1 = [atom.upper() for atom in split_neighbour_str(splitted_string[0])]
         self.atom_2 = splitted_string[1].upper()
         self.atom_3 = splitted_string[2].upper()
         self.neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[3])]
 
-def has_regex_pattern(pattern):
-    assert ('$' not in pattern) and ('^' not in pattern)
+def has_regex_pattern(pattern: str) -> bool:
+    assert ('$' not in pattern) and ('^' not in pattern), pattern
     return any([y in pattern for y in SQL_FULL_REGEX_CHARACTERS])
 
 REGEX_START_ANCHOR, REGEX_END_ANCHOR, REGEX_OR_OPERATOR = ('^', '$', '|')
@@ -58,16 +64,16 @@ ONE_ATOM = '[' + ATOM_CHARACTERS + VALENCE_CHARACTERS + ']' + '{1,' + str(MAX_AT
 ONE_NUMBER = '[0-9]'
 ANY_NUMBER_OF_ATOMS = '[' + ATOM_CHARACTERS + VALENCE_CHARACTERS + ESCAPED_COMMA + ']*'
 
-def REGEX_NOT(pattern):
+def REGEX_NOT(pattern: str) -> str:
     return '[^(' + str(pattern) + ')]'
 
-def REGEX_GROUP(index):
+def REGEX_GROUP(index: int) -> str:
     return BACKSLASH + str(index)
 
-def REGEX_OR(*args):
+def REGEX_OR(*args: List[str]) -> str:
     return '(' + REGEX_OR_OPERATOR.join(args) + ')'
 
-def REGEX_ESCAPE(pattern, flavour='sql'):
+def REGEX_ESCAPE(pattern: str, flavour: str = 'sql') -> str:
     if flavour == 'sql':
         return BACKSLASH + str(pattern)
         return BACKSLASH + BACKSLASH + str(pattern)
@@ -76,40 +82,40 @@ def REGEX_ESCAPE(pattern, flavour='sql'):
     else:
         raise Exception()
 
-def REGEX_AT_LEAST(pattern, escape_plus=True):
+def REGEX_AT_LEAST(pattern: str, escape_plus: bool = True) -> str:
     return str(pattern) + (BACKSLASH if escape_plus else '') + '+'
 
-def FORMAT_ESCAPED(pattern):
+def FORMAT_ESCAPED(pattern: str) -> str:
     return pattern.replace('{', '{{').replace('}', '}}')
 
-def FORMAT_UNESCAPED(pattern):
+def FORMAT_UNESCAPED(pattern: str) -> str:
     return pattern.replace('{{', '{').replace('}}', '}')
 
-def NOT(pattern):
+def NOT(pattern: str) -> str:
     return '!' + str(pattern)
 
-def CAPTURE(pattern):
+def CAPTURE(pattern: str) -> str:
     return '(' + str(pattern) + ')'
 
-def ESCAPE(pattern):
+def ESCAPE(pattern: str) -> str:
     return BACKSLASH + str(pattern)
 
 NO_VALENCE = None
 
-def element_valence_for_atom(atom_desc):
+def element_valence_for_atom(atom_desc: str) -> Tuple[str, Optional[int]]:
     upper_atom = atom_desc.upper()
     match = search(
         CAPTURE('[' + ATOM_CHARACTERS + ']') + CAPTURE('[' + VALENCE_CHARACTERS + ']'),
         upper_atom,
     )
     if match:
-        element, valence = match.groups()
-        valence = int(valence)
+        element, valence_str = match.groups()
+        valence = int(valence_str)
     else:
         element, valence = upper_atom, NO_VALENCE
     return (element, valence)
 
-def on_asc_number_electron_then_asc_valence(atom):
+def on_asc_number_electron_then_asc_valence(atom) -> Union[Tuple[int, int], Tuple[int]]:
     ASC = lambda x: x
     element, valence = element_valence_for_atom(atom)
     try:
@@ -122,8 +128,9 @@ def on_asc_number_electron_then_asc_valence(atom):
             999,
         )
 
-Cycle = namedtuple('Cycle', 'i, n, j')
-def Small_Cycle(*args):
+Cycle = NamedTuple('Cycle', [('i', int), ('n', int), ('j', int)])
+
+def Small_Cycle(*args: Sequence[Any]) -> Cycle:
     assert len(args) == 3, 'Cycles of length > 9 are not allowed.'
     return Cycle(*args)
 
@@ -133,11 +140,10 @@ LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX, CYCLES_I
 CHIRAL_MARKER = '*'
 
 class Dihedral_Fragment(object):
+    def __init__(self, dihedral_string: Optional[str] = None, atom_list: Optional[Any] = None) -> None:
+        assert dihedral_string is not None or atom_list is not None, [dihedral_string, atom_list]
 
-    def __init__(self, dihedral_string=None, atom_list=None):
-        assert dihedral_string or atom_list, dict(dihedral_string=dihedral_string, atom_list=atom_list)
-
-        if dihedral_string:
+        if dihedral_string is not None:
             splitted_string = split_group_str(dihedral_string)
             self.neighbours_1 = [atom.upper() for atom in split_neighbour_str(splitted_string[LEFT_GROUP_INDEX])]
             self.atom_2 = splitted_string[LEFT_ATOM_INDEX].upper()
@@ -170,10 +176,10 @@ class Dihedral_Fragment(object):
         self.neighbours_4 = canonical_rep.neighbours_4
         self.cycles = canonical_rep.cycles
 
-    def has_cycles(self):
+    def has_cycles(self) -> bool:
         return bool(self.cycles)
 
-    def __str__(self, flag_chiral_sides=False):
+    def __str__(self, flag_chiral_sides: bool = False) -> str:
         return join_groups(
             [
                 join_neighbours(self.neighbours_1),
@@ -200,14 +206,14 @@ class Dihedral_Fragment(object):
             )
         )
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return self.__dict__ == other.__dict__
         #return self.__canonical_rep__().__dict__ == other.__canonical_rep__().__dict__
 
-    def __ne__(self, other):
+    def __ne__(self, other: Any) -> bool:
         return not self == other
 
-    def __canonical_rep__(self):
+    def __canonical_rep__(self) -> Any:
         other = copy(self)
 
         def sorted_neighbours_permutation_dict(neighbours):
@@ -329,21 +335,21 @@ class Dihedral_Fragment(object):
             other.reverse_dihedral()
         return other
 
-    def reverse_dihedral(self):
+    def reverse_dihedral(self) -> None:
         self.atom_2, self.atom_3 = self.atom_3, self.atom_2
         self.neighbours_1, self.neighbours_4 = self.neighbours_4, self.neighbours_1
         self.cycles = [x[::-1] for x in self.cycles]
 
-    def is_left_chiral(self):
+    def is_left_chiral(self) -> bool:
         return len(set(self.neighbours_1)) == 3
 
-    def is_right_chiral(self):
+    def is_right_chiral(self) -> bool:
         return len(set(self.neighbours_4)) == 3
 
-    def is_chiral_fragment(self):
+    def is_chiral_fragment(self) -> bool:
         return (self.is_left_chiral() or self.is_right_chiral())
 
-Operator_Pattern = namedtuple('Operator_Pattern', 'pattern, replacement, substitution_type')
+Operator_Pattern = NamedTuple('Operator_Pattern', [('pattern', str), ('replacement', str), ('substitution_type', str)])
 
 def exactly_N_times_operator(what=ONE_ATOM, how_many_times=ONE_NUMBER):
     return CAPTURE(what) + ESCAPE('{') + CAPTURE(how_many_times) + ESCAPE('}')
@@ -374,12 +380,12 @@ OPERATORS = (
     ),
 )
 
-OPERATORS = list(map(
+OPERATOR_PATTERNS = list(map(
     lambda x: Operator_Pattern(*x),
     OPERATORS,
 ))
 
-def regex_filters(flavour='sql'):
+def regex_filters(flavour: str ='sql') -> List[Any]:
     return [
         # Order matters here !
         Operator_Pattern(
@@ -387,7 +393,7 @@ def regex_filters(flavour='sql'):
             REGEX_ESCAPE('|', flavour=flavour),
             'str',
         ),
-    ] + OPERATORS + [
+    ] + OPERATOR_PATTERNS + [
         Operator_Pattern('%', ANY_NUMBER_OF_ATOMS, 'str'),
     ]
 
@@ -403,7 +409,7 @@ SQL_FULL_REGEX_CHARACTERS = ('{', '}', '!', '+', '-') + tuple(ATOM_CATEGORIES.ke
 has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARACTERS])
 
 def substitute_atom_pattern(atom_pattern):
-    def cleaned_atom_pattern(x):
+    def cleaned_atom_pattern(x: str) -> str:
         return sub('[\[\]\(\)\^\|\{\}\+\-0-9,]', '', x) # This line prevents atoms from ever having numbers in their name
 
     for cleaned_atom_pattern in (atom_pattern, cleaned_atom_pattern(atom_pattern)):
@@ -423,9 +429,8 @@ def substitute_atoms_in_pattern(pattern, flavour='sql'):
         ]
     )
 
-def split_on_atoms(group):
+def split_on_atoms(group: Any) -> Any:
     atom_patterns = split_neighbour_str(group)
-
     return atom_patterns
 
 def apply_regex_filters(string, debug=False, flavour='sql'):
@@ -462,7 +467,7 @@ def apply_regex_filters(string, debug=False, flavour='sql'):
 def escaped_special_regex_characters(patterns, flavour='sql'):
     return [ (REGEX_START_ANCHOR + apply_regex_filters(pattern, flavour=flavour)  + REGEX_END_ANCHOR) for pattern in patterns]
 
-def sql_OR(*args):
+def sql_OR(*args: Sequence[str]) -> str:
     return ' '.join(
         ['('] + [' OR '.join(*args)] + [')']
     )
@@ -471,7 +476,7 @@ TRUE_OR_FALSE = [False, True]
 FALSE = [False]
 PUT_SUBSTITUTION_PATTERN_FIRST = True
 
-def re_patterns(pattern, full_regex=False, flavour='sql', debug=False, metadata=None):
+def re_patterns(pattern: Dihedral_Matching_Pattern, full_regex: bool = False, flavour: str = 'sql', debug: bool = False, metadata: Any = None) -> List[Regular_Expression]:
     components = split_group_str(pattern)
     assert len(components) == 4
     need_to_reverse_inner_atoms = (components[LEFT_ATOM_INDEX] == components[RIGHT_ATOM_INDEX]) or any([x in list(ATOM_CATEGORIES.keys()) for x in (components[LEFT_ATOM_INDEX], components[RIGHT_ATOM_INDEX])])
@@ -496,9 +501,9 @@ def re_patterns(pattern, full_regex=False, flavour='sql', debug=False, metadata=
     patterns = [
         correct_pattern(
             pattern,
-            should_reverse=should_reverse,
-            left_permutation=left_permutation,
-            right_permutation=right_permutation,
+            should_reverse,
+            left_permutation,
+            right_permutation,
         )
         for (should_reverse, left_permutation, right_permutation) in product(
             (TRUE_OR_FALSE if need_to_reverse_inner_atoms else FALSE),
@@ -512,7 +517,7 @@ def re_patterns(pattern, full_regex=False, flavour='sql', debug=False, metadata=
 
     return patterns
 
-def re_pattern_matching_for(pattern, debug=False, metadata=None):
+def re_pattern_matching_for(pattern: Dihedral_Matching_Pattern, debug: bool = False, metadata: Any = None) -> Callable[[Dihedral_Fragment_Str], bool]:
     if not (has_substitution_pattern(pattern) or has_regex_pattern(pattern)):
         return lambda test_string: test_string == str(Dihedral_Fragment(pattern))
     else:
@@ -530,32 +535,44 @@ def re_pattern_matching_for(pattern, debug=False, metadata=None):
 
         return match_pattern_to
 
-def sql_pattern_matching_for(pattern):
+def sql_pattern_matching_for(pattern: Dihedral_Matching_Pattern, matching_field_name: str = 'dihedral_string'):
     if not (has_substitution_pattern(pattern) or has_regex_pattern(pattern)):
-        return 'dihedral_string="{pattern}"'.format(pattern=Dihedral_Fragment(pattern))
+        return '{matching_field_name}="{pattern}"'.format(
+            matching_field_name=matching_field_name,
+            pattern=Dihedral_Fragment(pattern),
+        )
     else:
         use_full_regex = has_regex_pattern(pattern)
-        patterns = re_patterns(pattern, full_regex=use_full_regex, flavour='sql')
+        all_patterns = re_patterns(pattern, full_regex=use_full_regex, flavour='sql')
         #patterns = [FORMAT_UNESCAPED(re_pattern) for re_pattern in re_patterns(pattern, full_regex=True, flavour='sql')]
 
         return sql_OR(
             [
-                'dihedral_string {sql_operator} "{match_pattern}"'.format(
+                '{matching_field_name} {sql_operator} "{match_pattern}"'.format(
+                    matching_field_name=matching_field_name,
                     sql_operator=('LIKE' if not use_full_regex else 'REGEXP'),
                     match_pattern=match_pattern,
                 )
-                for match_pattern in patterns
+                for match_pattern in all_patterns
             ]
         )
 
-def correct_pattern(pattern, should_reverse=False, left_permutation=(), right_permutation=()):
+def correct_pattern(pattern: Dihedral_Matching_Pattern, should_reverse: bool, left_permutation: Sequence[int], right_permutation: Sequence[int]) -> str:
     return join_groups(
-        (reversed if should_reverse else lambda x:x)(
-            [sorted_components(i, x, left_permutation=left_permutation, right_permutation=right_permutation) for (i, x) in enumerate(split_group_str(pattern))]
+        (reversed if should_reverse else (lambda x: x))(
+            [
+                sorted_components(
+                    i,
+                    x,
+                    left_permutation,
+                    right_permutation,
+                )
+                for (i, x) in enumerate(split_group_str(pattern))
+            ]
         )
     )
 
-def sorted_components(component_index, component, left_permutation=(), right_permutation=()):
+def sorted_components(component_index: int, component: str, left_permutation: Sequence[int], right_permutation: Sequence[int]) -> str:
     if component_index in (0,3):
         return join_neighbours(
             sorted_components_list(
@@ -566,7 +583,7 @@ def sorted_components(component_index, component, left_permutation=(), right_per
     else:
         return component
 
-def sorted_components_list(component_list, permutation=()):
+def sorted_components_list(component_list: List[str], permutation: Sequence[int]) -> List[str]:
     sorting_dict = dict(
         list(zip(
             sorted(group_by(component_list, lambda x:x).keys()),
@@ -586,7 +603,7 @@ SYNTAX_HELP = Template('''
   <span style='font-weight:bold'>Atom categories</span>
   <ul>
     {% for (code, matches) in ATOM_CATEGORIES %}
-      <li><code>{{ code }}</code>Any (single) atom in {{ matches }}</li>
+      <li><code>{{ code }}</code>Any (single) atom in {{ in_code_tag(matches) }}</li>
     {% endfor %}
   </ul>
 
@@ -601,9 +618,10 @@ SYNTAX_HELP = Template('''
 </p>
 ''').render(
     ATOM_CATEGORIES=list(ATOM_CATEGORIES.items()),
+    in_code_tag=lambda x: '<code>' + (str(x) if x else '') + '</code>',
 )
 
-def test_canonical_rep():
+def test_canonical_rep() -> None:
     test_cases = (
         ('H,C4,H|SI|C|C2,H,C4', 'C4,H,H|SI|C|C4,C2,H'), # M(SI) > M(C)
         ('H,C4,H|C|C|C4,H', 'C4,H,H|C|C|C4,H'), #M(C) == M(C), 3 > 2
@@ -619,7 +637,7 @@ def test_canonical_rep():
         cyclic_answer = str(Dihedral_Fragment(answer))
         assert cyclic_answer == answer, '"{0}" (answer) != "{1}" (expected)'.format(cyclic_answer, answer)
 
-def test_patterns():
+def test_patterns() -> None:
     test_cases = (
         'X,X|C|C|X,X',
         '!X+|N|C|CX',
@@ -638,7 +656,7 @@ def test_patterns():
         print(sql_pattern_matching_for(pattern))
         print()
 
-def test_cyclic_fragments():
+def test_cyclic_fragments() -> None:
     cyclic_fragment = Dihedral_Fragment(atom_list=(['H', 'H', 'C'], 'C', 'C', ['H', 'C', 'H'], [[2, 0, 1]]))
     print(str(cyclic_fragment))
     assert str(cyclic_fragment) == 'C,H,H|C|C|C,H,H|000', cyclic_fragment
@@ -673,10 +691,10 @@ def test_cyclic_fragments():
     except AssertionError:
         print('Rings length > 9 failed as expected.')
 
-def test_atom_list_init():
+def test_atom_list_init() -> None:
     fragment = Dihedral_Fragment(atom_list=(['C'], 'C', 'C', ['C']))
 
-def test_misc():
+def test_misc() -> None:
     dihedral_1 = Dihedral_Fragment("C,C,H|C|C|C,H,H")
     print(dihedral_1)
     dihedral_2 = Dihedral_Fragment("C,H,H|C|C|C,C,H")
@@ -686,7 +704,7 @@ def test_misc():
     print(dihedral_3)
     print(dihedral_3 == dihedral_2)
 
-def test_chiral_str():
+def test_chiral_str() -> None:
     dihedral_1 = Dihedral_Fragment("C,C,H|C|C|C,H,H")
     print(dihedral_1.__str__())
     print(dihedral_1.__str__(flag_chiral_sides=True))
