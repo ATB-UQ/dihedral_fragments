@@ -1,7 +1,8 @@
 from sys import stderr
+from functools import reduce
 
 from API_client.api import API
-from dihedral_fragments.fragment_dihedral import re_pattern_matching_for
+from dihedral_fragments.dihedral_fragment import re_pattern_matching_for
 from dihedral_fragments.chemistry import CHEMICAL_GROUPS
 
 DEBUG = True

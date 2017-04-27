@@ -1,7 +1,8 @@
 from itertools import product, combinations_with_replacement
 
-from dihedral_fragments.fragment_dihedral import FragmentDihedral, CHEMICAL_GROUPS, re_pattern_matching_for
+from dihedral_fragments.dihedral_fragment import Dihedral_Fragment, re_pattern_matching_for
 from dihedral_fragments.tag_predictor import tags_for_dihedral
+from dihedral_fragments.chemistry import CHEMICAL_GROUPS
 
 MONOVALENT = (1,)
 
@@ -52,7 +53,7 @@ def main():
             neighbours_1 = combinations_with_replacement(ATOMS, len_neighbours_1)
             neighbours_4 = combinations_with_replacement(ATOMS, len_neighbours_4)
             for a, b in product(neighbours_1, neighbours_4):
-                d = str(FragmentDihedral(atom_list=(list(a), atom_2, atom_3, list(b))))
+                d = str(Dihedral_Fragment(atom_list=(list(a), atom_2, atom_3, list(b))))
                 tags = tags_for_dihedral(d)
                 if len(tags) > 0:
                     print(d, tags)

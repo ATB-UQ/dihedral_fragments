@@ -1,4 +1,4 @@
-from dihedral_fragments.fragment_dihedral import FragmentDihedral
+from dihedral_fragments.dihedral_fragment import Dihedral_Fragment
 
 CHEMICAL_GROUPS = (
     # Hydrocarbons
@@ -75,7 +75,7 @@ CHEMICAL_GROUPS = (
 )
 
 CHEMICAL_GROUPS = list(map(
-    lambda moiety_pattern: (moiety_pattern[0], str(FragmentDihedral(dihedral_string=moiety_pattern[1]))),
+    lambda moiety_pattern: (moiety_pattern[0], str(Dihedral_Fragment(dihedral_string=moiety_pattern[1]))),
     CHEMICAL_GROUPS,
 ))
 

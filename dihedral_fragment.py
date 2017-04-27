@@ -2,9 +2,10 @@ from copy import deepcopy, copy
 from itertools import product
 from itertools import permutations
 from jinja2 import Template
-import re
+from re import search, sub, findall
 from collections import namedtuple
 from operator import itemgetter
+from typing import Optional
 
 from atb_helpers.iterables import group_by
 from atb_helpers.elements import ELEMENT_NUMBERS
@@ -34,8 +35,8 @@ def split_group_str(group_str):
     return group_str.split(GROUP_SEPARATOR)
 
 class Dihedral_Fragment_Matching_Pattern(object):
-    def __init__(self, pattern_string=None):
-        splitted_string = split_group_str(pattern)
+    def __init__(self, pattern_string: Optional[str] = None):
+        splitted_string = split_group_str(pattern_string)
         self.neighbours_1 = [atom.upper() for atom in split_neighbour_str(splitted_string[0])]
         self.atom_2 = splitted_string[1].upper()
         self.atom_3 = splitted_string[2].upper()
@@ -97,7 +98,7 @@ NO_VALENCE = None
 
 def element_valence_for_atom(atom_desc):
     upper_atom = atom_desc.upper()
-    match = re.search(
+    match = search(
         CAPTURE('[' + ATOM_CHARACTERS + ']') + CAPTURE('[' + VALENCE_CHARACTERS + ']'),
         upper_atom,
     )
@@ -131,7 +132,7 @@ LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX, CYCLES_I
 
 CHIRAL_MARKER = '*'
 
-class FragmentDihedral(object):
+class Dihedral_Fragment(object):
 
     def __init__(self, dihedral_string=None, atom_list=None):
         assert dihedral_string or atom_list, dict(dihedral_string=dihedral_string, atom_list=atom_list)
@@ -390,10 +391,6 @@ def regex_filters(flavour='sql'):
         Operator_Pattern('%', ANY_NUMBER_OF_ATOMS, 'str'),
     ]
 
-OPERATOR_STRIPPER = (
-    lambda x: re.find('')
-)
-
 ATOM_CATEGORIES = {
     'J': REGEX_OR('C', 'H'),
     'X': REGEX_OR('F', 'I', 'BR', 'CL'),
@@ -407,11 +404,11 @@ has_substitution_pattern = lambda x: any([y in x for y in SQL_SUBSTITUTION_CHARA
 
 def substitute_atom_pattern(atom_pattern):
     def cleaned_atom_pattern(x):
-        return re.sub('[\[\]\(\)\^\|\{\}\+\-0-9,]', '', x) # This line prevents atoms from ever having numbers in their name
+        return sub('[\[\]\(\)\^\|\{\}\+\-0-9,]', '', x) # This line prevents atoms from ever having numbers in their name
 
     for cleaned_atom_pattern in (atom_pattern, cleaned_atom_pattern(atom_pattern)):
         if cleaned_atom_pattern in ATOM_CATEGORIES:
-            return re.sub(cleaned_atom_pattern, ATOM_CATEGORIES[cleaned_atom_pattern], atom_pattern)
+            return sub(cleaned_atom_pattern, ATOM_CATEGORIES[cleaned_atom_pattern], atom_pattern)
     return atom_pattern
 
 def substitute_atoms_in_pattern(pattern, flavour='sql'):
@@ -439,11 +436,11 @@ def apply_regex_filters(string, debug=False, flavour='sql'):
         if substitution_type == 'str':
             string = string.replace(pattern, replacement)
         elif substitution_type == 're':
-            string = re.sub(pattern, replacement, string)
+            string = sub(pattern, replacement, string)
         elif substitution_type == 're_map_groups':
             general_pattern = pattern()
 
-            matches = re.findall(general_pattern, string)
+            matches = findall(general_pattern, string)
             if matches:
                 if debug:
                     print(matches)
@@ -453,7 +450,7 @@ def apply_regex_filters(string, debug=False, flavour='sql'):
                     if debug:
                         print(tailored_pattern, match)
                         print(mapped_replacement)
-                    string = re.sub(tailored_pattern, mapped_replacement, string)
+                    string = sub(tailored_pattern, mapped_replacement, string)
         else:
             raise Exception('Wrong substitution_type')
 
@@ -517,7 +514,7 @@ def re_patterns(pattern, full_regex=False, flavour='sql', debug=False, metadata=
 
 def re_pattern_matching_for(pattern, debug=False, metadata=None):
     if not (has_substitution_pattern(pattern) or has_regex_pattern(pattern)):
-        return lambda test_string: test_string == str(FragmentDihedral(pattern))
+        return lambda test_string: test_string == str(Dihedral_Fragment(pattern))
     else:
         patterns = [FORMAT_UNESCAPED(re_pattern) for re_pattern in re_patterns(pattern, full_regex=True, flavour='re', debug=debug, metadata=metadata)]
 
@@ -527,15 +524,15 @@ def re_pattern_matching_for(pattern, debug=False, metadata=None):
                 print(pattern)
                 print(patterns)
                 print(test_string)
-                print(any([re.search(match_pattern, test_string) for match_pattern in patterns]))
+                print(any([search(match_pattern, test_string) for match_pattern in patterns]))
                 print()
-            return any([re.search(match_pattern, test_string) for match_pattern in patterns])
+            return any([search(match_pattern, test_string) for match_pattern in patterns])
 
         return match_pattern_to
 
 def sql_pattern_matching_for(pattern):
     if not (has_substitution_pattern(pattern) or has_regex_pattern(pattern)):
-        return 'dihedral_string="{pattern}"'.format(pattern=FragmentDihedral(pattern))
+        return 'dihedral_string="{pattern}"'.format(pattern=Dihedral_Fragment(pattern))
     else:
         use_full_regex = has_regex_pattern(pattern)
         patterns = re_patterns(pattern, full_regex=use_full_regex, flavour='sql')
@@ -616,10 +613,10 @@ def test_canonical_rep():
     )
 
     for (dihedral_string, solution) in test_cases:
-        answer = str(FragmentDihedral(dihedral_string))
+        answer = str(Dihedral_Fragment(dihedral_string))
         assert answer == solution, '"{0}" (answer) != "{1}" (expected)'.format(answer, solution)
 
-        cyclic_answer = str(FragmentDihedral(answer))
+        cyclic_answer = str(Dihedral_Fragment(answer))
         assert cyclic_answer == answer, '"{0}" (answer) != "{1}" (expected)'.format(cyclic_answer, answer)
 
 def test_patterns():
@@ -642,55 +639,55 @@ def test_patterns():
         print()
 
 def test_cyclic_fragments():
-    cyclic_fragment = FragmentDihedral(atom_list=(['H', 'H', 'C'], 'C', 'C', ['H', 'C', 'H'], [[2, 0, 1]]))
+    cyclic_fragment = Dihedral_Fragment(atom_list=(['H', 'H', 'C'], 'C', 'C', ['H', 'C', 'H'], [[2, 0, 1]]))
     print(str(cyclic_fragment))
     assert str(cyclic_fragment) == 'C,H,H|C|C|C,H,H|000', cyclic_fragment
 
-    polycyclic_fragment, answer = FragmentDihedral(atom_list=(['H', 'C', 'C'], 'C', 'C', ['C', 'C', 'H'], [[2, 2, 1], [1, 3, 0]])), 'C,C,H|C|C|C,C,H|020,131'
+    polycyclic_fragment, answer = Dihedral_Fragment(atom_list=(['H', 'C', 'C'], 'C', 'C', ['C', 'C', 'H'], [[2, 2, 1], [1, 3, 0]])), 'C,C,H|C|C|C,C,H|020,131'
     print(str(polycyclic_fragment))
     assert str(polycyclic_fragment) == answer, '{0} != {1} (expected)'.format(
         str(polycyclic_fragment),
         answer,
     )
-    print(FragmentDihedral(str(polycyclic_fragment)))
+    print(Dihedral_Fragment(str(polycyclic_fragment)))
 
-    polycyclic_fragment, answer = FragmentDihedral(atom_list=(['H', 'N', 'O'], 'C', 'C', ['C', 'C', 'H'], [[2, 2, 1], [1, 3, 0]])), 'C,C,H|C|C|O,N,H|020,131'
+    polycyclic_fragment, answer = Dihedral_Fragment(atom_list=(['H', 'N', 'O'], 'C', 'C', ['C', 'C', 'H'], [[2, 2, 1], [1, 3, 0]])), 'C,C,H|C|C|O,N,H|020,131'
     print(str(polycyclic_fragment))
     assert str(polycyclic_fragment) == answer, '{0} != {1} (expected)'.format(
         str(polycyclic_fragment),
         answer,
     )
-    print(FragmentDihedral(str(polycyclic_fragment)))
+    print(Dihedral_Fragment(str(polycyclic_fragment)))
 
-    assert str(FragmentDihedral('C,C,C|C|C|C,C,C|002,101,200')) == 'C,C,C|C|C|C,C,C|000,101,202'
+    assert str(Dihedral_Fragment('C,C,C|C|C|C,C,C|002,101,200')) == 'C,C,C|C|C|C,C,C|000,101,202'
 
     try:
-        FragmentDihedral('C,C,N|C|C|C,C,C|002,101,200')
+        Dihedral_Fragment('C,C,N|C|C|C,C,C|002,101,200')
         raise Exception('This should have failed.')
     except AssertionError:
         print('Non-symmetric N=3 rings failed as expected.')
 
     try:
-        FragmentDihedral('C,C,C|C|C|C,C,C|0100')
+        Dihedral_Fragment('C,C,C|C|C|C,C,C|0100')
         raise Exception('This should have failed.')
     except AssertionError:
         print('Rings length > 9 failed as expected.')
 
 def test_atom_list_init():
-    fragment = FragmentDihedral(atom_list=(['C'], 'C', 'C', ['C']))
+    fragment = Dihedral_Fragment(atom_list=(['C'], 'C', 'C', ['C']))
 
 def test_misc():
-    dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
+    dihedral_1 = Dihedral_Fragment("C,C,H|C|C|C,H,H")
     print(dihedral_1)
-    dihedral_2 = FragmentDihedral("C,H,H|C|C|C,C,H")
+    dihedral_2 = Dihedral_Fragment("C,H,H|C|C|C,C,H")
     print(dihedral_2)
     print(dihedral_1 == dihedral_2)
-    dihedral_3 = FragmentDihedral(atom_list=(['H', 'H'], 'C', 'C', ['Cl', 'Cl']))
+    dihedral_3 = Dihedral_Fragment(atom_list=(['H', 'H'], 'C', 'C', ['Cl', 'Cl']))
     print(dihedral_3)
     print(dihedral_3 == dihedral_2)
 
 def test_chiral_str():
-    dihedral_1 = FragmentDihedral("C,C,H|C|C|C,H,H")
+    dihedral_1 = Dihedral_Fragment("C,C,H|C|C|C,H,H")
     print(dihedral_1.__str__())
     print(dihedral_1.__str__(flag_chiral_sides=True))
 

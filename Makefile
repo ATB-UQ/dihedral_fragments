@@ -8,3 +8,7 @@ fragment_generator:
 
 tables:
 	$(PYTHONPATH) python latex_table.py
+
+errors:
+	/usr/local/python35/bin/pylint -E $$(find . -name '*.py')
+.PHONY: errors
