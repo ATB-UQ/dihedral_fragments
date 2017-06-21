@@ -5,7 +5,7 @@ from jinja2 import Template
 from re import search, sub, findall
 from collections import namedtuple
 from operator import itemgetter
-from typing import Optional, Any, Tuple, Union, Sequence, NamedTuple, List, Callable
+from typing import Optional, Any, Tuple, Union, Sequence, NamedTuple, List, Callable, Dict
 
 from atb_helpers.iterables import group_by
 from atb_helpers.elements import ELEMENT_NUMBERS
@@ -143,7 +143,12 @@ LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX, CYCLES_I
 CHIRAL_MARKER = '*'
 
 class Dihedral_Fragment(object):
-    def __init__(self, dihedral_string: Optional[str] = None, atom_list: Optional[Any] = None) -> None:
+    def __init__(
+        self,
+        dihedral_string: Optional[str] = None,
+        atom_list: Optional[Union[Tuple[List[str], str, str, List[str]], Tuple[List[str], str, str, List[str], str]]] = None,
+        dihedral_angles: Optional[List[float]] = None,
+    ) -> None:
         assert dihedral_string is not None or atom_list is not None, [dihedral_string, atom_list]
 
         if dihedral_string is not None:
@@ -171,7 +176,7 @@ class Dihedral_Fragment(object):
             else:
                 raise Exception('Wrong length of atom_list: {0}'.format(atom_list))
 
-        canonical_rep = self.__canonical_rep__()
+        canonical_rep = self.__canonical_rep__(dihedral_angles=dihedral_angles)
 
         self.neighbours_1 = canonical_rep.neighbours_1
         self.atom_2 = canonical_rep.atom_2
@@ -216,112 +221,92 @@ class Dihedral_Fragment(object):
     def __ne__(self, other: Any) -> bool:
         return not self == other
 
-    def __canonical_rep__(self) -> Any:
-        other = copy(self)
+    def order_cycles(self: Any) -> None:
+        self.cycles.sort(
+            key=lambda cycle: (cycle.n, cycle.i, cycle.j),
+        )
+    def canonise_cycles(self: Any) -> None:
+        if len(self.cycles) in (0, 1):
+            pass
+        elif len(self.cycles) == 2:
+            cycle_0, cycle_1 = self.cycles
+            should_order_left = (self.neighbours_1[cycle_0.i] == self.neighbours_1[cycle_1.i])
+            should_order_right = (self.neighbours_4[cycle_0.j] == self.neighbours_4[cycle_1.j])
+            self.cycles = [
+                Cycle(
+                    min(cycle_0.i, cycle_1.i) if should_order_left else cycle_0.i,
+                    min(cycle_0.n, cycle_1.n),
+                    min(cycle_0.j, cycle_1.j) if should_order_right else cycle_0.j,
+                ),
+                Cycle(
+                    max(cycle_0.i, cycle_1.i) if should_order_left else cycle_1.i,
+                    max(cycle_0.n, cycle_1.n),
+                    max(cycle_0.j, cycle_1.j) if should_order_right else cycle_1.j,
+                ),
+            ]
+        else:
+            Is, Ns, Js = list(zip(*self.cycles))
+            should_order = dict(
+                [
+                    (direction, len(set(neighbours)) == 1)
+                    for (direction, neighbours) in zip(
+                        ('left', 'right'),
+                        (self.neighbours_1, self.neighbours_4),
+                    )
+                ],
+            )
 
-        def sorted_neighbours_permutation_dict(neighbours):
-            sorted_neighbours = list(
-                sorted(
-                    enumerate(neighbours),
-                    key=lambda i_neighbour: on_asc_number_electron_then_asc_valence(i_neighbour[1]),
-                    reverse=True,
+            if ENFORCE_CANONICAL_TRICYLIC:
+                assert all(should_order.values()), 'Only symmetric (all similar or all different) environments are allowed for N-cycles where N >= 3 (fragment={0}, cycles={1}).'.format(
+                    str(self),
+                    self.cycles,
                 )
-            )
-            permutation_dict = dict(
-                [(i, j) for (j, (i, _)) in enumerate(sorted_neighbours)]
-            )
-            return (
-                list(map(itemgetter(1), sorted_neighbours)),
-                permutation_dict,
-            )
 
-
-        def sort_neighbours_renumber_cycles(fragment):
-            '''Order each neighbour list by alphabetical order, reordering the (possible) cycles to match those changes.'''
-            # WARNING: Keep in mind that maintaining order will be necessary for maintaining sterochemistry information
-            fragment.neighbours_1, permutation_1 = sorted_neighbours_permutation_dict(fragment.neighbours_1)
-            fragment.neighbours_4, permutation_4 = sorted_neighbours_permutation_dict(fragment.neighbours_4)
-            fragment.cycles = [
-                Cycle(permutation_1[neighbour_id_1], cycle_length, permutation_4[neighbour_id_4])
-                for (neighbour_id_1, cycle_length, neighbour_id_4) in self.cycles
+            self.cycles = [
+                Cycle(i, n, j)
+                for (i, n, j) in
+                zip(
+                    *list(map(
+                        sorted,
+                        (Is, Ns, Js),
+                    ))
+                )
             ]
 
-        def canonise_cycles(fragment):
-            if len(fragment.cycles) in (0, 1):
-                pass
-            elif len(fragment.cycles) == 2:
-                cycle_0, cycle_1 = fragment.cycles
-                should_order_left = (fragment.neighbours_1[cycle_0.i] == fragment.neighbours_1[cycle_1.i])
-                should_order_right = (fragment.neighbours_4[cycle_0.j] == fragment.neighbours_4[cycle_1.j])
-                fragment.cycles = [
-                    Cycle(
-                        min(cycle_0.i, cycle_1.i) if should_order_left else cycle_0.i,
-                        min(cycle_0.n, cycle_1.n),
-                        min(cycle_0.j, cycle_1.j) if should_order_right else cycle_0.j,
-                    ),
-                    Cycle(
-                        max(cycle_0.i, cycle_1.i) if should_order_left else cycle_1.i,
-                        max(cycle_0.n, cycle_1.n),
-                        max(cycle_0.j, cycle_1.j) if should_order_right else cycle_1.j,
-                    ),
-                ]
-            else:
-                Is, Ns, Js = list(zip(*self.cycles))
-                should_order = dict(
-                    [
-                        (direction, len(set(neighbours)) == 1)
-                        for (direction, neighbours) in zip(
-                            ('left', 'right'),
-                            (fragment.neighbours_1, fragment.neighbours_4),
-                        )
-                    ],
+            def cycle_key(cycle: Cycle) -> Tuple[int, int, int, int]:
+                return(
+                    self.neighbours_1[cycle.i],
+                    len([1 for other_cycle in self.cycles if cycle.i == other_cycle.i]),
+                    self.neighbours_4[cycle.j],
+                    len([1 for other_cycle in self.cycles if cycle.j == other_cycle.j]),
                 )
 
-                if ENFORCE_CANONICAL_TRICYLIC:
-                    assert all(should_order.values()), 'Only symmetric (all similar or all different) environments are allowed for N-cycles where N >= 3 (fragment={0}, cycles={1}).'.format(
-                        str(fragment),
-                        fragment.cycles,
-                    )
+    def __canonical_rep__(self, dihedral_angles: Optional[List[float]]) -> Any:
+        other = copy(self)
 
-                fragment.cycles = [
-                    Cycle(i, n, j)
-                    for (i, n, j) in
-                    zip(
-                        *list(map(
-                            sorted,
-                            (Is, Ns, Js),
-                        ))
-                    )
-                ]
+        if dihedral_angles is not None:
+            assert len(dihedral_angles) == len(self.neighbours_1) + len(self.neighbours_4), self
+            assert all(180.0 <= angle < 180.0 for angle in dihedral_angles)
 
-                def cycle_key(cycle):
-                    return(
-                        fragment.neighbours_1[cycle.i],
-                        len([1 for other_cycle in fragment.cycles if cycle.i == other_cycle.i]),
-                        fragment.neighbours_4[cycle.j],
-                        len([1 for other_cycle in fragment.cycles if cycle.j == other_cycle.j]),
-                    )
+        other.sort_neighbours_renumber_cycles(dihedral_angles)
+        other.canonise_cycles()
+        other.order_cycles()
+        other.flip_fragment_if_necessary()
 
-        def order_cycles(fragment):
-            fragment.cycles.sort(
-                key=lambda cycle: (cycle.n, cycle.i, cycle.j),
-            )
+        return other
 
-        sort_neighbours_renumber_cycles(other)
-        canonise_cycles(other)
-        order_cycles(other)
-
+    def flip_fragment_if_necessary(self: Any) -> None:
         # Compare the two central atoms and put the heavier one on the left
-        if on_asc_number_electron_then_asc_valence(other.atom_2) <  on_asc_number_electron_then_asc_valence(other.atom_3):
+        if on_asc_number_electron_then_asc_valence(self.atom_2) <  on_asc_number_electron_then_asc_valence(self.atom_3):
             should_reverse = True
-        elif on_asc_number_electron_then_asc_valence(other.atom_2) == on_asc_number_electron_then_asc_valence(other.atom_3):
+        elif on_asc_number_electron_then_asc_valence(self.atom_2) == on_asc_number_electron_then_asc_valence(self.atom_3):
             should_reverse = False
 
-            if len(other.neighbours_1) < len(other.neighbours_4):
+            if len(self.neighbours_1) < len(self.neighbours_4):
                 should_reverse = True
-            elif len(other.neighbours_1) == len(other.neighbours_4):
+            elif len(self.neighbours_1) == len(self.neighbours_4):
                 # If identical central atoms, and same number of neighbours on both ends, try to resolve ambiguity one neighbour at a time
-                for (neighbour_1, neighbour_4) in zip(other.neighbours_1, other.neighbours_4):
+                for (neighbour_1, neighbour_4) in zip(self.neighbours_1, self.neighbours_4):
                     if on_asc_number_electron_then_asc_valence(neighbour_1) < on_asc_number_electron_then_asc_valence(neighbour_4):
                         should_reverse = True
                         break
@@ -335,8 +320,34 @@ class Dihedral_Fragment(object):
             should_reverse = False
 
         if should_reverse:
-            other.reverse_dihedral()
-        return other
+            self.reverse_dihedral()
+
+    def sort_neighbours_renumber_cycles(self: Any, dihedral_angles: List[float]) -> None:
+        '''Order each neighbour list by alphabetical order, reordering the (possible) cycles to match those changes.'''
+        def sorted_neighbours_permutation_dict(neighbours: List[str]) -> Tuple[List[str], Dict[int, int]]:
+            sorted_neighbours = list(
+                sorted(
+                    enumerate(neighbours),
+                    key=lambda i_neighbour: on_asc_number_electron_then_asc_valence(i_neighbour[1]),
+                    reverse=True,
+                )
+            )
+            permutation_dict = {
+                i: j
+                for (j, (i, _)) in enumerate(sorted_neighbours)
+            }
+            return (
+                list(map(itemgetter(1), sorted_neighbours)),
+                permutation_dict,
+            )
+
+        # WARNING: Keep in mind that maintaining order will be necessary for maintaining sterochemistry information
+        self.neighbours_1, permutation_1 = sorted_neighbours_permutation_dict(self.neighbours_1)
+        self.neighbours_4, permutation_4 = sorted_neighbours_permutation_dict(self.neighbours_4)
+        self.cycles = [
+            Cycle(permutation_1[neighbour_id_1], cycle_length, permutation_4[neighbour_id_4])
+            for (neighbour_id_1, cycle_length, neighbour_id_4) in self.cycles
+        ]
 
     def reverse_dihedral(self) -> None:
         self.atom_2, self.atom_3 = self.atom_3, self.atom_2
@@ -344,10 +355,10 @@ class Dihedral_Fragment(object):
         self.cycles = [x[::-1] for x in self.cycles]
 
     def is_left_chiral(self) -> bool:
-        return len(set(self.neighbours_1)) == 3
+        return len(set(self.neighbours_1)) >= 3
 
     def is_right_chiral(self) -> bool:
-        return len(set(self.neighbours_4)) == 3
+        return len(set(self.neighbours_4)) >= 3
 
     def is_chiral_fragment(self) -> bool:
         return (self.is_left_chiral() or self.is_right_chiral())

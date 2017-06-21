@@ -92,7 +92,7 @@ def test_chiral_str() -> None:
 
 if __name__ == "__main__" :
     #test_atom_list_init()
-    test_patterns()
+    #test_patterns()
     test_canonical_rep()
     test_chiral_str()
     test_cyclic_fragments()
