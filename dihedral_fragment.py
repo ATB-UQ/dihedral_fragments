@@ -7,6 +7,8 @@ from collections import namedtuple
 from operator import itemgetter
 from typing import Optional, Any, Tuple, Union, Sequence, NamedTuple, List, Callable, Dict
 
+from dihedral_fragments.deque import deque, Deque, rotated_deque, reversed_deque
+
 from atb_helpers.iterables import group_by
 from atb_helpers.elements import ELEMENT_NUMBERS
 
@@ -147,16 +149,16 @@ class Dihedral_Fragment(object):
         self,
         dihedral_string: Optional[str] = None,
         atom_list: Optional[Union[Tuple[List[str], str, str, List[str]], Tuple[List[str], str, str, List[str], str]]] = None,
-        dihedral_angles: Optional[List[float]] = None,
+        dihedral_angles: Optional[Tuple[List[float], List[float]]] = None,
     ) -> None:
         assert dihedral_string is not None or atom_list is not None, [dihedral_string, atom_list]
 
         if dihedral_string is not None:
             splitted_string = split_group_str(dihedral_string)
-            self.neighbours_1 = [atom.upper() for atom in split_neighbour_str(splitted_string[LEFT_GROUP_INDEX])]
+            neighbours_1 = [atom.upper() for atom in split_neighbour_str(splitted_string[LEFT_GROUP_INDEX])]
             self.atom_2 = splitted_string[LEFT_ATOM_INDEX].upper()
             self.atom_3 = splitted_string[RIGHT_ATOM_INDEX].upper()
-            self.neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[RIGHT_GROUP_INDEX])]
+            neighbours_4 = [atom.upper() for atom in split_neighbour_str(splitted_string[RIGHT_GROUP_INDEX])]
             self.cycles = (
                 [
                     Small_Cycle(*list(map(int, cycle_str)))
@@ -168,13 +170,15 @@ class Dihedral_Fragment(object):
             )
         else:
             if len(atom_list) == 4:
-                self.neighbours_1, self.atom_2, self.atom_3, self.neighbours_4 = atom_list
+                neighbours_1, self.atom_2, self.atom_3, neighbours_4 = atom_list
                 self.cycles = []
             elif len(atom_list) == 5:
-                self.neighbours_1, self.atom_2, self.atom_3, self.neighbours_4, self.cycles = atom_list
+                neighbours_1, self.atom_2, self.atom_3, neighbours_4, self.cycles = atom_list
                 self.cycles = [Small_Cycle(*c) for c in self.cycles]
             else:
                 raise Exception('Wrong length of atom_list: {0}'.format(atom_list))
+
+        self.neighbours_1, self.neighbours_4 = map(deque, (neighbours_1, neighbours_4))
 
         canonical_rep = self.__canonical_rep__(dihedral_angles=dihedral_angles)
 
@@ -281,12 +285,8 @@ class Dihedral_Fragment(object):
                     len([1 for other_cycle in self.cycles if cycle.j == other_cycle.j]),
                 )
 
-    def __canonical_rep__(self, dihedral_angles: Optional[List[float]]) -> Any:
+    def __canonical_rep__(self, dihedral_angles: Optional[Tuple[List[float], List[float]]]) -> Any:
         other = copy(self)
-
-        if dihedral_angles is not None:
-            assert len(dihedral_angles) == len(self.neighbours_1) + len(self.neighbours_4), self
-            assert all(180.0 <= angle < 180.0 for angle in dihedral_angles)
 
         other.sort_neighbours_renumber_cycles(dihedral_angles)
         other.canonise_cycles()
@@ -322,28 +322,54 @@ class Dihedral_Fragment(object):
         if should_reverse:
             self.reverse_dihedral()
 
-    def sort_neighbours_renumber_cycles(self: Any, dihedral_angles: List[float]) -> None:
+    def sort_neighbours_renumber_cycles(self: Any, dihedral_angles: Optional[List[float]]) -> None:
         '''Order each neighbour list by alphabetical order, reordering the (possible) cycles to match those changes.'''
-        def sorted_neighbours_permutation_dict(neighbours: List[str]) -> Tuple[List[str], Dict[int, int]]:
-            sorted_neighbours = list(
+        if dihedral_angles is not None:
+            left_dihedral_angles, right_dihedral_angles = dihedral_angles
+            assert len(left_dihedral_angles) == len(self.neighbours_1) and len(right_dihedral_angles) == len(self.neighbours_4), [left_dihedral_angles, self.neighbours_1, right_dihedral_angles, self.neighbours_4]
+            assert all(-180.0 <= angle < 180.0 for angle in left_dihedral_angles + right_dihedral_angles), left_dihedral_angles + right_dihedral_angles
+        else:
+            left_dihedral_angles, right_dihedral_angles = [0.0 for _ in self.neighbours_1], [0.0 for _ in self.neighbours_1]
+
+        def sorted_neighbours_permutation_dict(neighbours: List[str], angles: List[str]) -> Tuple[Deque[str], Dict[int, int]]:
+            get_neighbour = lambda item: item[1][0]
+            on_dihedral_angle = lambda item: item[1][1]
+
+            sorted_neighbour_items = list(
                 sorted(
-                    enumerate(neighbours),
-                    key=lambda i_neighbour: on_asc_number_electron_then_asc_valence(i_neighbour[1]),
-                    reverse=True,
+                    enumerate(zip(neighbours, angles)),
+                    key=on_dihedral_angle,
+                    reverse=False,
                 )
             )
+
+            neighbour_items_deque = deque(sorted_neighbour_items)
+
+            best_items = sorted(
+                [
+                    rotated_deque(neighbour_items_deque, n)
+                    for n in range(len(sorted_neighbour_items))
+                ],
+                key=lambda _neighbours: tuple(
+                    [
+                        on_asc_number_electron_then_asc_valence(neighbour)[0]
+                        for (i, (neighbour, angle)) in _neighbours
+                    ],
+                ),
+                reverse=True,
+            )[0]
+
             permutation_dict = {
                 i: j
-                for (j, (i, _)) in enumerate(sorted_neighbours)
+                for (j, (i, _)) in enumerate(best_items)
             }
             return (
-                list(map(itemgetter(1), sorted_neighbours)),
+                deque(map(get_neighbour, best_items)),
                 permutation_dict,
             )
 
-        # WARNING: Keep in mind that maintaining order will be necessary for maintaining sterochemistry information
-        self.neighbours_1, permutation_1 = sorted_neighbours_permutation_dict(self.neighbours_1)
-        self.neighbours_4, permutation_4 = sorted_neighbours_permutation_dict(self.neighbours_4)
+        self.neighbours_1, permutation_1 = sorted_neighbours_permutation_dict(self.neighbours_1, left_dihedral_angles)
+        self.neighbours_4, permutation_4 = sorted_neighbours_permutation_dict(self.neighbours_4, right_dihedral_angles)
         self.cycles = [
             Cycle(permutation_1[neighbour_id_1], cycle_length, permutation_4[neighbour_id_4])
             for (neighbour_id_1, cycle_length, neighbour_id_4) in self.cycles

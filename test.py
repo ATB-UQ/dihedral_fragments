@@ -1,5 +1,24 @@
 from dihedral_fragments.dihedral_fragment import Dihedral_Fragment, sql_pattern_matching_for, re_pattern_matching_for
 
+TEST_ANGLES = [
+    ([0, 120, -120], [0, 120, -120]),
+    ([0, -120, 120], [0, 120, -120]),
+    ([0, -120, 120], [0, -120, 120]),
+    ([0, 120, -120], [0, -120, 120]),
+]
+
+def test_CYP() -> None:
+    for dihedral_angles in TEST_ANGLES:
+        print(
+            str(
+                Dihedral_Fragment(
+                    atom_list=(['C', 'H', 'O'], 'C', 'C', ['C', 'H', 'O']),
+                    dihedral_angles=dihedral_angles
+                )
+            ),
+        )
+    exit()
+
 def test_canonical_rep() -> None:
     test_cases = (
         ('H,C4,H|SI|C|C2,H,C4', 'C4,H,H|SI|C|C4,C2,H'), # M(SI) > M(C)
@@ -93,6 +112,7 @@ def test_chiral_str() -> None:
 if __name__ == "__main__" :
     #test_atom_list_init()
     #test_patterns()
+    test_CYP()
     test_canonical_rep()
     test_chiral_str()
     test_cyclic_fragments()
