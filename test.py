@@ -17,6 +17,15 @@ def test_CYP() -> None:
                 )
             ),
         )
+
+    for dihedral_angles in TEST_ANGLES:
+        print(
+            Dihedral_Fragment(
+                atom_list=(['C', 'H', 'H'], 'C', 'C', ['C', 'H', 'O']),
+                dihedral_angles=dihedral_angles,
+            ),
+        )
+
     exit()
 
 def test_canonical_rep() -> None:

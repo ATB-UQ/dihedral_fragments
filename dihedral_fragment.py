@@ -345,6 +345,11 @@ class Dihedral_Fragment(object):
 
             neighbour_items_deque = deque(sorted_neighbour_items)
 
+            if DEBUG:
+                print(
+                    list(zip(neighbours, angles))
+                )
+
             best_items = sorted(
                 [
                     rotated_deque(neighbour_items_deque, n)
