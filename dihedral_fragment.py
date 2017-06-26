@@ -6,6 +6,7 @@ from re import search, sub, findall
 from collections import namedtuple
 from operator import itemgetter
 from typing import Optional, Any, Tuple, Union, Sequence, NamedTuple, List, Callable, Dict
+from sys import stderr
 
 from dihedral_fragments.deque import deque, Deque, rotated_deque, reversed_deque
 
@@ -327,7 +328,7 @@ class Dihedral_Fragment(object):
         if dihedral_angles is not None:
             left_dihedral_angles, right_dihedral_angles = dihedral_angles
             assert len(left_dihedral_angles) == len(self.neighbours_1) and len(right_dihedral_angles) == len(self.neighbours_4), [left_dihedral_angles, self.neighbours_1, right_dihedral_angles, self.neighbours_4]
-            assert all(-180.0 <= angle < 180.0 for angle in left_dihedral_angles + right_dihedral_angles), left_dihedral_angles + right_dihedral_angles
+            assert all(-180.0 <= angle <= 180.0 for angle in left_dihedral_angles + right_dihedral_angles), left_dihedral_angles + right_dihedral_angles
         else:
             left_dihedral_angles, right_dihedral_angles = [0.0 for _ in self.neighbours_1], [0.0 for _ in self.neighbours_1]
 
