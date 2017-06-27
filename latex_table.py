@@ -1,8 +1,10 @@
 from collections import Iterable
 from jinja2 import Template
 from functools import reduce
+from urllib.request import urlopen
+import json
 
-from .chemistry import CHEMICAL_GROUPS
+from dihedral_fragments.chemistry import CHEMICAL_GROUPS
 
 def dihedral(pattern):
     if pattern:
@@ -70,8 +72,6 @@ if __name__ == "__main__" :
         number_columns=3,
     ))
 
-    from urllib.request import urlopen
-    import json
     response = urlopen('https://atb.uq.edu.au/index.py?filter_0=40&tab=dihedral_fragments&format=json&items_per_page=30')
     top30 = json.loads(response.read())['main']
 

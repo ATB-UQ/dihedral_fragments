@@ -1,7 +1,8 @@
 from sys import stderr
+from os.path import exists
 from functools import reduce
 
-from API_client.api import API
+from atb_api_public.api import API
 from dihedral_fragments.dihedral_fragment import re_pattern_matching_for
 from dihedral_fragments.chemistry import CHEMICAL_GROUPS
 
@@ -41,7 +42,6 @@ def yes_or_no(query):
 IGNORE_FILE = '.ignore'
 
 def get_ignored_molids():
-    from os.path import exists
     if exists(IGNORE_FILE):
         with open(IGNORE_FILE) as fh:
             return set([int(line) for line in fh.read().splitlines()])

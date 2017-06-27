@@ -1,6 +1,5 @@
 from copy import deepcopy, copy
-from itertools import product
-from itertools import permutations
+from itertools import product, permutations, groupby
 from jinja2 import Template
 from re import search, sub, findall
 from collections import namedtuple
@@ -10,8 +9,7 @@ from sys import stderr
 
 from dihedral_fragments.deque import deque, Deque, rotated_deque, reversed_deque
 
-from atb_helpers.iterables import group_by
-from atb_helpers.elements import ELEMENT_NUMBERS
+from dihedral_fragments.atomic_numbers import ATOMIC_NUMBERS
 
 Dihedral_Fragment_Str = str
 
@@ -126,7 +124,7 @@ def on_asc_number_electron_then_asc_valence(atom) -> Union[Tuple[int, int], Tupl
     element, valence = element_valence_for_atom(atom)
     try:
         return (
-            ASC(ELEMENT_NUMBERS[element]),
+            ASC(ATOMIC_NUMBERS[element]),
             ASC(valence),
         )
     except KeyError:
@@ -554,15 +552,27 @@ def re_patterns(pattern: Dihedral_Matching_Pattern, full_regex: bool = False, fl
         print(components[LEFT_ATOM_INDEX])
         print(components[RIGHT_ATOM_INDEX])
 
-    left_neighbour_groups, right_neighbour_groups = list(map(
-        lambda index: split_neighbour_str(components[index]),
-        (LEFT_GROUP_INDEX, RIGHT_GROUP_INDEX),
-    ))
+    left_neighbour_groups, right_neighbour_groups = list(
+        map(
+            lambda index: split_neighbour_str(components[index]),
+            (LEFT_GROUP_INDEX, RIGHT_GROUP_INDEX),
+        ),
+    )
 
-    left_permutations, right_permutations = list(map(
-        lambda group: permutations(list(range(len(group_by(group, key=lambda x:x))))),
-        (left_neighbour_groups, right_neighbour_groups),
-    ))
+    on_self=lambda x: x
+
+    left_permutations, right_permutations = list(
+        map(
+            lambda group: permutations(
+                range(
+                    len(
+                        list(groupby(sorted(group, key=on_self), key=on_self)),
+                    ),
+                ),
+            ),
+            (left_neighbour_groups, right_neighbour_groups),
+        ),
+    )
 
     patterns = [
         correct_pattern(
