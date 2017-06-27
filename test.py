@@ -1,4 +1,5 @@
-from dihedral_fragments.dihedral_fragment import Dihedral_Fragment, sql_pattern_matching_for, re_pattern_matching_for
+from dihedral_fragments.dihedral_fragment import Dihedral_Fragment
+from dihedral_fragments.pattern_matching import sql_pattern_matching_for, re_pattern_matching_for
 
 TEST_ANGLES = [
     ([0, 120, -120], [0, 120, -120]),

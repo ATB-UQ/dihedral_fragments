@@ -1,6 +1,6 @@
 from itertools import product, combinations_with_replacement
 
-from dihedral_fragments.dihedral_fragment import Dihedral_Fragment, re_pattern_matching_for
+from dihedral_fragments.dihedral_fragment import Dihedral_Fragment
 from dihedral_fragments.tag_predictor import tags_for_dihedral
 from dihedral_fragments.chemistry import CHEMICAL_GROUPS
 
