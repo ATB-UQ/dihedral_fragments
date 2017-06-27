@@ -72,6 +72,9 @@ LEFT_GROUP_INDEX, LEFT_ATOM_INDEX, RIGHT_ATOM_INDEX, RIGHT_GROUP_INDEX, CYCLES_I
 
 CHIRAL_MARKER = '*'
 
+class Invalid_Dihedral_Angles(Exception):
+    pass
+
 class Dihedral_Fragment(object):
     def __init__(
         self,
@@ -255,7 +258,8 @@ class Dihedral_Fragment(object):
         if dihedral_angles is not None:
             left_dihedral_angles, right_dihedral_angles = dihedral_angles
             assert len(left_dihedral_angles) == len(self.neighbours_1) and len(right_dihedral_angles) == len(self.neighbours_4), [left_dihedral_angles, self.neighbours_1, right_dihedral_angles, self.neighbours_4]
-            assert all(-180.0 <= angle <= 180.0 for angle in left_dihedral_angles + right_dihedral_angles), left_dihedral_angles + right_dihedral_angles
+            if not all(-180.0 <= angle <= 180.0 for angle in left_dihedral_angles + right_dihedral_angles):
+                raise Invalid_Dihedral_Angles([left_dihedral_angles + right_dihedral_angles])
         else:
             left_dihedral_angles, right_dihedral_angles = [0.0 for _ in self.neighbours_1], [0.0 for _ in self.neighbours_1]
 
