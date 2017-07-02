@@ -48,9 +48,20 @@ def element_valence_for_atom(atom_desc: str) -> Tuple[str, Optional[int]]:
         element, valence = upper_atom, NO_VALENCE
     return (element, valence)
 
-def on_asc_number_electron_then_asc_valence(atom) -> Union[Tuple[int, int], Tuple[int]]:
-    ASC = lambda x: x
-    element, valence = element_valence_for_atom(atom)
+def ASC(x: Optional[int]) -> Optional[int]:
+    if x is None:
+        return x
+    else:
+        return x
+
+def DESC(x: Optional[int]) -> Optional[int]:
+    if x is None:
+        return x
+    else:
+        return -x
+
+def on_asc_atomic_number_then_asc_valence(atom_desc: str) -> Tuple[int, int]:
+    element, valence = element_valence_for_atom(atom_desc)
     try:
         return (
             ASC(ATOMIC_NUMBERS[element]),
@@ -58,6 +69,20 @@ def on_asc_number_electron_then_asc_valence(atom) -> Union[Tuple[int, int], Tupl
         )
     except KeyError:
         return (
+            999,
+            999,
+        )
+
+def on_desc_atomic_number_then_desc_valence(atom_desc: str) -> Tuple[int, int]:
+    element, valence = element_valence_for_atom(atom_desc)
+    try:
+        return (
+            DESC(ATOMIC_NUMBERS[element]),
+            DESC(valence),
+        )
+    except KeyError:
+        return (
+            999,
             999,
         )
 
@@ -228,9 +253,9 @@ class Dihedral_Fragment(object):
 
     def flip_fragment_if_necessary(self: Any) -> None:
         # Compare the two central atoms and put the heavier one on the left
-        if on_asc_number_electron_then_asc_valence(self.atom_2) <  on_asc_number_electron_then_asc_valence(self.atom_3):
+        if on_asc_atomic_number_then_asc_valence(self.atom_2) <  on_asc_atomic_number_then_asc_valence(self.atom_3):
             should_reverse = True
-        elif on_asc_number_electron_then_asc_valence(self.atom_2) == on_asc_number_electron_then_asc_valence(self.atom_3):
+        elif on_asc_atomic_number_then_asc_valence(self.atom_2) == on_asc_atomic_number_then_asc_valence(self.atom_3):
             should_reverse = False
 
             if len(self.neighbours_1) < len(self.neighbours_4):
@@ -238,10 +263,10 @@ class Dihedral_Fragment(object):
             elif len(self.neighbours_1) == len(self.neighbours_4):
                 # If identical central atoms, and same number of neighbours on both ends, try to resolve ambiguity one neighbour at a time
                 for (neighbour_1, neighbour_4) in zip(self.neighbours_1, self.neighbours_4):
-                    if on_asc_number_electron_then_asc_valence(neighbour_1) < on_asc_number_electron_then_asc_valence(neighbour_4):
+                    if on_asc_atomic_number_then_asc_valence(neighbour_1) < on_asc_atomic_number_then_asc_valence(neighbour_4):
                         should_reverse = True
                         break
-                    elif on_asc_number_electron_then_asc_valence(neighbour_1) == on_asc_number_electron_then_asc_valence(neighbour_4):
+                    elif on_asc_atomic_number_then_asc_valence(neighbour_1) == on_asc_atomic_number_then_asc_valence(neighbour_4):
                         pass
                     else:
                         break
@@ -265,12 +290,12 @@ class Dihedral_Fragment(object):
 
         def sorted_neighbours_permutation_dict(neighbours: List[str], angles: List[str]) -> Tuple[Deque[str], Dict[int, int]]:
             get_neighbour = lambda item: item[1][0]
-            on_dihedral_angle = lambda item: item[1][1]
+            on_dihedral_angle_then_desc_atomic_number_and_valence = lambda item: (item[1][1], on_desc_atomic_number_then_desc_valence(get_neighbour(item)))
 
             sorted_neighbour_items = list(
                 sorted(
                     enumerate(zip(neighbours, angles)),
-                    key=on_dihedral_angle,
+                    key=on_dihedral_angle_then_desc_atomic_number_and_valence,
                     reverse=False,
                 )
             )
@@ -289,7 +314,7 @@ class Dihedral_Fragment(object):
                 ],
                 key=lambda _neighbours: tuple(
                     [
-                        on_asc_number_electron_then_asc_valence(neighbour)[0]
+                        on_asc_atomic_number_then_asc_valence(neighbour)[0]
                         for (i, (neighbour, angle)) in _neighbours
                     ],
                 ),
