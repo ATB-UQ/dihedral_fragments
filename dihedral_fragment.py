@@ -88,8 +88,8 @@ def on_desc_atomic_number_then_desc_valence(atom_desc: str) -> Tuple[int, int]:
 
 Cycle = NamedTuple('Cycle', [('i', int), ('n', int), ('j', int)])
 
-def Small_Cycle(*args: Sequence[Any]) -> Cycle:
-    assert len(args) == 3, 'Cycles of length > 9 are not allowed.'
+def Small_Cycle(*args: Sequence[int]) -> Cycle:
+    assert len(args) == 3, 'Cycles of length > 9 or containing neighbours with more than 9 bonds are not allowed (details: {0})'.format(args)
     return Cycle(*args)
 
 GROUP_INDICES = (0, 1, 2, 3, 4)
@@ -187,6 +187,7 @@ class Dihedral_Fragment(object):
         self.cycles.sort(
             key=lambda cycle: (cycle.n, cycle.i, cycle.j),
         )
+
     def canonise_cycles(self: Any) -> None:
         if len(self.cycles) in (0, 1):
             pass
