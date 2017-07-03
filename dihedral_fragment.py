@@ -290,7 +290,7 @@ class Dihedral_Fragment(object):
             if not all(-180.0 <= angle <= 180.0 for angle in left_dihedral_angles + right_dihedral_angles):
                 raise Invalid_Dihedral_Angles([left_dihedral_angles + right_dihedral_angles])
         else:
-            left_dihedral_angles, right_dihedral_angles = [0.0 for _ in self.neighbours_1], [0.0 for _ in self.neighbours_1]
+            left_dihedral_angles, right_dihedral_angles = [0.0 for _ in self.neighbours_1], [0.0 for _ in self.neighbours_4]
 
         def sorted_neighbours_permutation_dict(neighbours: List[str], angles: List[str]) -> Tuple[Deque[str], Dict[int, int]]:
             get_neighbour = lambda item: item[1][0]
