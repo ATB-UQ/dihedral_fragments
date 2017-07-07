@@ -1,6 +1,6 @@
 from typing import List, Any, Optional
 
-from dihedral_fragments.dihedral_fragment import GROUP_SEPARATOR, on_asc_number_electron_then_asc_valence, NEIGHBOUR_SEPARATOR
+from dihedral_fragments.dihedral_fragment import GROUP_SEPARATOR, on_asc_atomic_number_then_asc_valence, NEIGHBOUR_SEPARATOR
 
 class Improper(object):
     def __init__(self, central: Optional[str] = None, neighbours: Optional[List[str]] = None, improper_str: Optional[str] = None) -> None:
@@ -13,7 +13,7 @@ class Improper(object):
 
         self.neighbours = sorted(
             self.neighbours,
-            key=on_asc_number_electron_then_asc_valence,
+            key=on_asc_atomic_number_then_asc_valence,
             reverse=True,
         )
 

@@ -100,6 +100,8 @@ CHIRAL_MARKER = '*'
 class Invalid_Dihedral_Angles(Exception):
     pass
 
+Fragment = str
+
 class Dihedral_Fragment(object):
     def __init__(
         self,
