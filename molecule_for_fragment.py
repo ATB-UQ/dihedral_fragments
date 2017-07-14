@@ -28,6 +28,9 @@ api = API(
     api_format='pickle',
 )
 
+class Molecule_Not_In_ATB(Exception):
+    pass
+
 def molid_after_capping_fragment(
     fragment: Fragment,
     count: Optional[int] = None,
@@ -35,7 +38,8 @@ def molid_after_capping_fragment(
     fragments: Optional[List[Any]] = None,
     quick_run: bool = False,
     debug: bool = False,
-) -> ATB_Molid:
+    soft_fail: bool = True,
+) -> Optional[ATB_Molid]:
     if all([x is not None for x in (count, i, fragments)]):
         print('Running fragment {0}/{1} (count={2}): "{3}"'.format(
             i + 1,
@@ -83,7 +87,10 @@ def molid_after_capping_fragment(
 
         except AssertionError as e:
             print(e)
-            best_molid = None
+            if soft_fail:
+                best_molid = None
+            else:
+                raise Molecule_Not_In_ATB()
 
     else:
         print('Capped fragment not found in ATB.')
@@ -94,7 +101,10 @@ def molid_after_capping_fragment(
         print('Energy Minimised Dummy PDB')
         print(energy_minimised_pdb(pdb_str=molecule.dummy_pdb()))
         molecule.write_graph('BEST')
-        best_molid = None
+        if soft_fail:
+            best_molid = None
+        else:
+            raise Molecule_Not_In_ATB('Capped molecule not found in ATB (formula={0})'.format(molecule.formula()))
 
     print()
 
