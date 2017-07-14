@@ -8,6 +8,7 @@ def parse_args():
 
     parser.add_argument('--fragment', type=Fragment, help='')
     parser.add_argument('--profile', action='store_true', help='')
+    parser.add_argument('--debug', action='store_true', help='Run overly-verbose debugging')
 
     return parser.parse_args()
 
@@ -15,7 +16,7 @@ if __name__ == '__main__':
     args = parse_args()
     if not args.profile:
         print(
-            molid_after_capping_fragment(args.fragment, quick_run=False),
+            molid_after_capping_fragment(args.fragment, quick_run=False, debug=args.debug),
         )
     else:
         from cProfile import runctx as profile_run
@@ -25,7 +26,7 @@ if __name__ == '__main__':
         profile_run(
             'molid_after_capping_fragment(fragment, quick_run=True)',
             {},
-            dict(molid_after_capping_fragment=molid_after_capping_fragment, fragment=args.fragment),
+            dict(molid_after_capping_fragment=molid_after_capping_fragment, fragment=args.fragment, debug=args.debug),
             filename=time_file,
         )
 

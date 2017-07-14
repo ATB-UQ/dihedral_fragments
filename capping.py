@@ -1,4 +1,6 @@
 from typing import Any, List, Optional
+from pprint import pprint
+from sys import stderr
 
 from fragment_capping.helpers.molecule import Uncapped_Molecule, Molecule
 from fragment_capping.helpers.types_helpers import Fragment, Atom
@@ -6,7 +8,9 @@ from fragment_capping.helpers.types_helpers import Fragment, Atom
 from dihedral_fragments.dihedral_fragment import element_valence_for_atom, NO_VALENCE
 
 def best_capped_molecule_for_dihedral_fragment(fragment_str: Fragment, debug: bool = False) -> Molecule:
-    molecule = uncapped_molecule_for_dihedral_fragment(fragment_str).get_best_capped_molecule()
+    molecule = uncapped_molecule_for_dihedral_fragment(fragment_str).get_best_capped_molecule(
+        debug=stderr if debug else None,
+    )
 
     if debug:
         print(molecule)
