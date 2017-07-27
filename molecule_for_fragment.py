@@ -51,67 +51,70 @@ def molid_after_capping_fragment(
     molecule = best_capped_molecule_for_dihedral_fragment(fragment, debug=debug)
 
     if quick_run:
-        return molecule
-
-    try:
-        api_response = api.Molecules.structure_search(
-            netcharge='*',
-            structure_format='pdb',
-            structure=molecule.dummy_pdb(),
-            return_type='molecules',
-        )
-    except HTTPError:
-        print(molecule.dummy_pdb())
-        raise
-
-    molecules = api_response['matches']
-
-    if molecules:
-        print([atb_molecule['molid'] for atb_molecule in molecules])
-        best_molid = sorted(
-            molecules,
-            key=lambda atb_molecule: int(atb_molecule['molid']),
-        )[0]['molid']
-
-        best_molecule = api.Molecules.molid(
-            molid=best_molid,
-        )
-
+        best_molid = None
+    else:
         try:
-            assert best_molecule.is_finished, 'Molecule is still running'
-            #assert fragment in best_molecule.dihedral_fragments, 'Dihedral fragment not found in molecule. Maybe it is still running ?'
-            if fragment != 'N,C,H|C|C|O,O':
-                assert set([atb_molecule['InChI'] for atb_molecule in molecules]) == set([best_molecule.inchi]), 'Several molecules with different InChI have been found: {0}'.format(
-                    set([atb_molecule['InChI'] for atb_molecule in molecules]),
-                )
+            api_response = api.Molecules.structure_search(
+                netcharge='*',
+                structure_format='pdb',
+                structure=molecule.dummy_pdb(),
+                return_type='molecules',
+            )
+        except HTTPError:
+            print(molecule.dummy_pdb())
+            raise
 
-        except AssertionError as e:
-            print(e)
+        molecules = api_response['matches']
+
+        if molecules:
+            print('ATB matches: ', [atb_molecule['molid'] for atb_molecule in molecules])
+            best_molid = sorted(
+                molecules,
+                key=lambda atb_molecule: int(atb_molecule['molid']),
+            )[0]['molid']
+
+            best_molecule = api.Molecules.molid(
+                molid=best_molid,
+            )
+
+            try:
+                assert best_molecule.is_finished, 'Molecule is still running'
+                #assert fragment in best_molecule.dihedral_fragments, 'Dihedral fragment not found in molecule. Maybe it is still running ?'
+                if fragment != 'N,C,H|C|C|O,O':
+                    assert set([atb_molecule['InChI'] for atb_molecule in molecules]) == set([best_molecule.inchi]), 'Several molecules with different InChI have been found: {0}'.format(
+                        set([atb_molecule['InChI'] for atb_molecule in molecules]),
+                    )
+
+            except AssertionError as e:
+                print(e)
+                if soft_fail:
+                    best_molid = None
+                else:
+                    raise Molecule_Not_In_ATB()
+
+        else:
+            print('Capped fragment not found in ATB.')
+            print('Formula', molecule.formula())
+            print('Smiles', molecule.smiles())
+            print('Dummy PDB')
+            print(molecule.dummy_pdb())
+            print('Energy Minimised Dummy PDB')
+            try:
+                print(energy_minimised_pdb(pdb_str=molecule.dummy_pdb()))
+            except Exception as e:
+                print('Could not produce Energy Minimised Dummy PDB (error was: "{0}")'.format(str(e)))
+            molecule.write_graph('BEST')
             if soft_fail:
                 best_molid = None
             else:
-                raise Molecule_Not_In_ATB()
+                raise Molecule_Not_In_ATB('Capped molecule not found in ATB (formula={0})'.format(molecule.formula()))
 
-    else:
-        print('Capped fragment not found in ATB.')
-        print('Formula', molecule.formula())
-        print('Smiles', molecule.smiles())
-        print('Dummy PDB')
-        print(molecule.dummy_pdb())
-        print('Energy Minimised Dummy PDB')
-        print(energy_minimised_pdb(pdb_str=molecule.dummy_pdb()))
-        molecule.write_graph('BEST')
-        if soft_fail:
-            best_molid = None
-        else:
-            raise Molecule_Not_In_ATB('Capped molecule not found in ATB (formula={0})'.format(molecule.formula()))
+        print()
 
-    print()
+        safe_fragment_name = fragment.replace('|', '_')
 
-    safe_fragment_name = fragment.replace('|', '_')
-
-    with open(join(FRAGMENT_CAPPING_DIR, 'pdbs/{fragment}.pdb'.format(fragment=safe_fragment_name)), 'w') as fh:
-        fh.write(molecule.dummy_pdb())
+        with open(join(FRAGMENT_CAPPING_DIR, 'pdbs/{fragment}.pdb'.format(fragment=safe_fragment_name)), 'w') as fh:
+            fh.write(molecule.dummy_pdb())
 
     return best_molid
 
