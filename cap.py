@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 from typing import Any, List, Optional
 
-from dihedral_fragments.molecule_for_fragment import molid_after_capping_fragment, Fragment, Too_Many_Permutations, Molecule_Not_In_ATB
+from dihedral_fragments.molecule_for_fragment import molid_after_capping_fragment, Fragment, Too_Many_Permutations, Molecule_Not_In_ATB, PDB_Structure_Not_Found, ATB_Molecule_Running
 
 def parse_args():
     parser = ArgumentParser()

@@ -12,6 +12,7 @@ from os.path import dirname, abspath, join
 
 from dihedral_fragments.dihedral_fragment import element_valence_for_atom, on_asc_atomic_number_then_asc_valence, NO_VALENCE, Fragment
 from dihedral_fragments.capping import best_capped_molecule_for_dihedral_fragment
+from dihedral_fragments.exceptions import PDB_Structure_Not_Found, ATB_Molecule_Running
 
 from fragment_capping.cache import cached
 from fragment_capping.helpers.types_helpers import ATB_Molid, Atom, FRAGMENT_CAPPING_DIR
@@ -53,15 +54,16 @@ def molid_after_capping_fragment(
     if quick_run:
         best_molid = None
     else:
+        optimised_pdb = molecule.energy_minimised_pdb()
         try:
             api_response = api.Molecules.structure_search(
                 netcharge='*',
                 structure_format='pdb',
-                structure=molecule.dummy_pdb(),
+                structure=optimised_pdb,
                 return_type='molecules',
             )
         except HTTPError:
-            print(molecule.dummy_pdb())
+            print(optimised_pdb)
             raise
 
         molecules = api_response['matches']
@@ -90,9 +92,10 @@ def molid_after_capping_fragment(
                 if soft_fail:
                     best_molid = None
                 else:
-                    raise Molecule_Not_In_ATB()
+                    raise ATB_Molecule_Running(best_molecule.molid)
 
         else:
+            raise PDB_Structure_Not_Found(optimised_pdb, molecule.netcharge())
             print('Capped fragment not found in ATB.')
             print('Formula', molecule.formula())
             print('Smiles', molecule.smiles())
@@ -103,7 +106,7 @@ def molid_after_capping_fragment(
                 print(energy_minimised_pdb(pdb_str=molecule.dummy_pdb()))
             except Exception as e:
                 print('Could not produce Energy Minimised Dummy PDB (error was: "{0}")'.format(str(e)))
-            molecule.write_graph('BEST')
+            molecule.write_graph('BEST', output_size=(600, 600))
             if soft_fail:
                 best_molid = None
             else:

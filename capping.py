@@ -8,8 +8,9 @@ from fragment_capping.helpers.types_helpers import Fragment, Atom
 from dihedral_fragments.dihedral_fragment import element_valence_for_atom, NO_VALENCE
 
 def best_capped_molecule_for_dihedral_fragment(fragment_str: Fragment, debug: bool = False) -> Molecule:
-    molecule = uncapped_molecule_for_dihedral_fragment(fragment_str).get_best_capped_molecule(
+    molecule = uncapped_molecule_for_dihedral_fragment(fragment_str).get_best_capped_molecule_with_ILP(
         debug=stderr if debug else None,
+        enforce_octet_rule=True,
     )
 
     if debug:
@@ -28,7 +29,7 @@ def uncapped_molecule_for_dihedral_fragment(dihedral_fragment: Fragment, debug: 
     else:
         raise Exception('Invalid dihedral_fragment: "{0}"'.format(dihedral_fragment))
 
-    ids = [n for (n, _) in enumerate(neighbours_1 + [atom_2, atom_3] + neighbours_4)]
+    ids = [n for (n, _) in enumerate(neighbours_1 + [atom_2, atom_3] + neighbours_4, start=1)]
 
     neighbours_id_1, atom_id_2, atom_id_3, neighbours_id_4 = ids[0:len(neighbours_1)], ids[len(neighbours_1)], ids[len(neighbours_1) + 1], ids[len(neighbours_1) + 2:]
     CENTRAL_BOND = (atom_id_2, atom_id_3)
