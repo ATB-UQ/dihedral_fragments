@@ -10,7 +10,7 @@ from re import sub, search
 from urllib.request import urlopen
 from os.path import dirname, abspath, join
 
-from dihedral_fragments.dihedral_fragment import element_valence_for_atom, on_asc_atomic_number_then_asc_valence, NO_VALENCE, Fragment
+from dihedral_fragments.dihedral_fragment import element_valence_for_atom, on_asc_atomic_number_then_asc_valence, NO_VALENCE, Fragment, remove_valences_in_fragment_str
 from dihedral_fragments.capping import best_capped_molecule_for_dihedral_fragment
 from dihedral_fragments.exceptions import PDB_Structure_Not_Found, ATB_Molecule_Running
 
@@ -18,8 +18,7 @@ from fragment_capping.cache import cached
 from fragment_capping.helpers.types_helpers import ATB_Molid, Atom, FRAGMENT_CAPPING_DIR
 from fragment_capping.helpers.molecule import Molecule, Too_Many_Permutations
 from fragment_capping.helpers.babel import energy_minimised_pdb
-
-from atb_api import API, HTTPError
+from atb_api import API, HTTPError, ATB_Mol
 
 from cairosvg import svg2png # pylint: disable=no-name-in-module
 
@@ -66,34 +65,26 @@ def molid_after_capping_fragment(
             print(optimised_pdb)
             raise
 
-        molecules = api_response['matches']
+        molecules = [ATB_Mol(None, molecule_dict) for molecule_dict in api_response['matches']]
 
         if molecules:
-            print('ATB matches: ', [atb_molecule['molid'] for atb_molecule in molecules])
-            best_molid = sorted(
+            print('ATB matches: ', [atb_molecule.molid for atb_molecule in molecules])
+            best_molecule = sorted(
                 molecules,
-                key=lambda atb_molecule: int(atb_molecule['molid']),
-            )[0]['molid']
+                key=lambda atb_molecule: (not remove_valences_in_fragment_str(fragment) in atb_molecule.dihedral_fragments, int(atb_molecule.molid)),
+            )[0]
+            best_molid = best_molecule.molid
 
-            best_molecule = api.Molecules.molid(
-                molid=best_molid,
-            )
+            #best_molecule = api.Molecules.molid(
+            #    molid=best_molid,
+            #)
 
-            try:
-                assert best_molecule.is_finished, 'Molecule is still running'
-                #assert fragment in best_molecule.dihedral_fragments, 'Dihedral fragment not found in molecule. Maybe it is still running ?'
-                if fragment != 'N,C,H|C|C|O,O':
-                    assert set([atb_molecule['InChI'] for atb_molecule in molecules]) == set([best_molecule.inchi]), 'Several molecules with different InChI have been found: {0}'.format(
-                        set([atb_molecule['InChI'] for atb_molecule in molecules]),
-                    )
+            if not best_molecule.is_finished:
+                raise Exception(str(best_molecule))
+                raise ATB_Molecule_Running(best_molecule.molid)
 
-            except AssertionError as e:
-                print(e)
-                if soft_fail:
-                    best_molid = None
-                else:
-                    raise ATB_Molecule_Running(best_molecule.molid)
-
+            if not remove_valences_in_fragment_str(fragment) in best_molecule.dihedral_fragments:
+                raise Exception('Missing fragment: {0}, {1}, {2}'.format(fragment, best_molecule.molid, best_molecule.dihedral_fragments))
         else:
             raise PDB_Structure_Not_Found(optimised_pdb, molecule.netcharge())
             print('Capped fragment not found in ATB.')
