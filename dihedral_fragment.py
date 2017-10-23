@@ -1,11 +1,11 @@
 from copy import deepcopy, copy
-from re import search
+from re import search, sub
 from typing import Optional, Any, Tuple, Union, Sequence, NamedTuple, List, Callable, Dict
 from sys import stderr
 
 from dihedral_fragments.deque import deque, Deque, rotated_deque, reversed_deque
 from dihedral_fragments.atomic_numbers import ATOMIC_NUMBERS
-from dihedral_fragments.regex import CAPTURE, ATOM_CHARACTERS, VALENCE_CHARACTERS
+from dihedral_fragments.regex import CAPTURE, ATOM_CHARACTERS, VALENCE_CHARACTERS, ONE_ATOM, ONE_NUMBER, ONE_OR_MORE_TIMES, GROUP
 
 Dihedral_Fragment_Str = str
 
@@ -356,3 +356,6 @@ class Dihedral_Fragment(object):
 
     def is_chiral_fragment(self) -> bool:
         return (self.is_left_chiral() or self.is_right_chiral())
+
+def remove_valences_in_fragment_str(fragment_str: str) -> str:
+    return sub(CAPTURE('[a-zA-Z]+') + ONE_NUMBER + ONE_OR_MORE_TIMES, GROUP(1), fragment_str)

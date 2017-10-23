@@ -11,6 +11,8 @@ VALENCE_CHARACTERS, MAX_VALENCE_CHARACTERS = '0-9', 1
 ONE_ATOM = '[' + ATOM_CHARACTERS + VALENCE_CHARACTERS + ']' + '{1,' + str(MAX_ATOM_CHARACTERS + MAX_VALENCE_CHARACTERS) + '}'
 ONE_NUMBER = '[0-9]'
 ANY_NUMBER_OF_ATOMS = '[' + ATOM_CHARACTERS + VALENCE_CHARACTERS + ESCAPED_COMMA + ']*'
+ONE_OR_MORE_TIMES = '+'
+GROUP = lambda n: r'\{n}'.format(n=n)
 
 def REGEX_NOT_SET(pattern: str) -> str:
     return '[^(' + str(pattern) + ')]'
