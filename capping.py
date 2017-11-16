@@ -1,6 +1,7 @@
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 from pprint import pprint
 from sys import stderr
+from math import cos, sin, pi
 
 from fragment_capping.helpers.molecule import Uncapped_Molecule, Molecule
 from fragment_capping.helpers.types_helpers import Fragment, Atom
@@ -62,6 +63,21 @@ def uncapped_molecule_for_dihedral_fragment(dihedral_fragment: Fragment, debug: 
         ]
     )
 
+    def coordinates_for_atom_id(atom_id: int, d: float = 1.5) -> Tuple[float, float, float]:
+        if atom_id == atom_id_2:
+            return (-d / 2, 0, 0)
+        elif atom_id == atom_id_3:
+            return (d / 2, 0, 0)
+        else:
+            if atom_id in neighbours_id_1:
+                left_theta = 2 * pi / len(neighbours_id_1) * neighbours_id_1.index(atom_id)
+                return (-d /2, -d * cos(left_theta), d * sin(left_theta))
+            elif atom_id in neighbours_id_4:
+                right_theta = 2 * pi / len(neighbours_id_4) * neighbours_id_4.index(atom_id)
+                return (d / 2, d * cos(right_theta), d * sin(right_theta))
+            else:
+                raise Exception('Impossible id: {0}'.format(atom_id))
+
     molecule = Molecule(
         dict(
             list(zip(
@@ -72,7 +88,7 @@ def uncapped_molecule_for_dihedral_fragment(dihedral_fragment: Fragment, debug: 
                         element=elements[atom_id],
                         valence=valences[atom_id],
                         capped=atom_id not in (neighbours_id_1 + neighbours_id_4),
-                        coordinates=None,
+                        coordinates=coordinates_for_atom_id(atom_id),
                     )
                     for atom_id in ids
                 ],
