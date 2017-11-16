@@ -101,7 +101,6 @@ def uncapped_molecule_for_dihedral_fragment(dihedral_fragment: Fragment, debug: 
         bonds,
         name=dihedral_fragment.replace('|', '_'),
     )
-    raise Exception(molecule.dummy_pdb())
 
     if debug:
         print(molecule)
