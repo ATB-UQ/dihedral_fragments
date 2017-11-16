@@ -1,7 +1,7 @@
 from typing import Any, List, Optional, Tuple
 from pprint import pprint
 from sys import stderr
-from math import cos, sin, pi
+from math import cos, sin, pi, sqrt
 
 from fragment_capping.helpers.molecule import Uncapped_Molecule, Molecule
 from fragment_capping.helpers.types_helpers import Fragment, Atom
@@ -69,12 +69,15 @@ def uncapped_molecule_for_dihedral_fragment(dihedral_fragment: Fragment, debug: 
         elif atom_id == atom_id_3:
             return (d / 2, 0, 0)
         else:
+            e = 0.5 * d
+            f = sqrt(d ** 2 - e ** 2)
+            assert e ** 2 + f ** 2 == d ** 2, (e ** 2 + f ** 2, d ** 2)
             if atom_id in neighbours_id_1:
                 left_theta = 2 * pi / len(neighbours_id_1) * neighbours_id_1.index(atom_id)
-                return (-d /2, -d * cos(left_theta), d * sin(left_theta))
+                return (-d /2 - e, -f * cos(left_theta), f * sin(left_theta))
             elif atom_id in neighbours_id_4:
                 right_theta = 2 * pi / len(neighbours_id_4) * neighbours_id_4.index(atom_id)
-                return (d / 2, d * cos(right_theta), d * sin(right_theta))
+                return (d / 2 + e, f * cos(right_theta), f * sin(right_theta))
             else:
                 raise Exception('Impossible id: {0}'.format(atom_id))
 
@@ -98,6 +101,7 @@ def uncapped_molecule_for_dihedral_fragment(dihedral_fragment: Fragment, debug: 
         bonds,
         name=dihedral_fragment.replace('|', '_'),
     )
+    raise Exception(molecule.dummy_pdb())
 
     if debug:
         print(molecule)
