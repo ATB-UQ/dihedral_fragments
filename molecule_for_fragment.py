@@ -56,22 +56,31 @@ def molid_after_capping_fragment(
         optimised_pdb = molecule.energy_minimised_pdb()
         try:
             api_response = api.Molecules.structure_search(
-                netcharge='*',
+                netcharge=molecule.netcharge(),
                 structure_format='pdb',
                 structure=optimised_pdb,
                 return_type='molecules',
             )
         except HTTPError:
-            print(optimised_pdb)
+            print('optmised_pdb', optimised_pdb)
+            print('netcharge', molecule.netcharge())
             raise
 
-        molecules = [ATB_Mol(None, molecule_dict) for molecule_dict in api_response['matches']]
+        molecules = [ATB_Mol(None, molecule_dict) for molecule_dict in api_response['matches'] if molecule_dict['inchi'] == api_response['search_molecule']['inchi']]
+        print('molecules', molecules)
+        print('optimised_pdb', optimised_pdb)
+        print('netcharge', molecule.netcharge())
+
+        has_full_valences = (remove_valences_in_fragment_str(fragment) != fragment)
+        if has_full_valences:
+            for atb_molecule in molecules:
+                atb_molecule.dihedral_fragments = api.Molecules.output_file(molid=atb_molecule.molid, output_name='dihedral_fragments',output_kwargs={'use_valences': True})
 
         if molecules:
-            print('ATB matches: ', [atb_molecule.molid for atb_molecule in molecules])
+            print('molid_after_capping_fragment(): ATB_matches=', [atb_molecule.molid for atb_molecule in molecules])
             best_molecule = sorted(
                 molecules,
-                key=lambda atb_molecule: (not remove_valences_in_fragment_str(fragment) in atb_molecule.dihedral_fragments, int(atb_molecule.molid)),
+                key=lambda atb_molecule: (not fragment in atb_molecule.dihedral_fragments, int(atb_molecule.molid)),
             )[0]
             best_molid = best_molecule.molid
 
@@ -80,10 +89,9 @@ def molid_after_capping_fragment(
             #)
 
             if not best_molecule.is_finished:
-                raise Exception(str(best_molecule))
                 raise ATB_Molecule_Running(best_molecule.molid)
 
-            if not remove_valences_in_fragment_str(fragment) in best_molecule.dihedral_fragments:
+            if not fragment in best_molecule.dihedral_fragments:
                 raise Exception('Missing fragment: {0}, {1}, {2}'.format(fragment, best_molecule.molid, best_molecule.dihedral_fragments))
         else:
             raise PDB_Structure_Not_Found(optimised_pdb, molecule.netcharge())
