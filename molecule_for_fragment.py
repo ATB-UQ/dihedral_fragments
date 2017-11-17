@@ -67,9 +67,11 @@ def molid_after_capping_fragment(
             raise
 
         molecules = [ATB_Mol(None, molecule_dict) for molecule_dict in api_response['matches'] if molecule_dict['inchi'] == api_response['search_molecule']['inchi']]
-        print('molecules', molecules)
-        print('optimised_pdb', optimised_pdb)
-        print('netcharge', molecule.netcharge())
+
+        if debug:
+            print('molecules', molecules)
+            print('optimised_pdb', optimised_pdb)
+            print('netcharge', molecule.netcharge())
 
         has_full_valences = (remove_valences_in_fragment_str(fragment) != fragment)
         if has_full_valences:
