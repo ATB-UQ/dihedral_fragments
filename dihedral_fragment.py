@@ -108,6 +108,7 @@ class Dihedral_Fragment(object):
         dihedral_string: Optional[str] = None,
         atom_list: Optional[Union[Tuple[List[str], str, str, List[str]], Tuple[List[str], str, str, List[str], str]]] = None,
         dihedral_angles: Optional[Tuple[List[float], List[float]]] = None,
+        can_flip_fragment: bool = True,
     ) -> None:
         assert dihedral_string is not None or atom_list is not None, [dihedral_string, atom_list]
 
@@ -140,7 +141,7 @@ class Dihedral_Fragment(object):
 
         self.neighbours_1, self.neighbours_4 = map(deque, (neighbours_1, neighbours_4))
 
-        canonical_rep = self.__canonical_rep__(keep_stereoscopic_centers, dihedral_angles=dihedral_angles)
+        canonical_rep = self.__canonical_rep__(keep_stereoscopic_centers, dihedral_angles=dihedral_angles, can_flip_fragment=can_flip_fragment)
 
         self.neighbours_1 = canonical_rep.neighbours_1
         self.atom_2 = canonical_rep.atom_2
@@ -180,7 +181,6 @@ class Dihedral_Fragment(object):
 
     def __eq__(self, other: Any) -> bool:
         return self.__dict__ == other.__dict__
-        #return self.__canonical_rep__().__dict__ == other.__canonical_rep__().__dict__
 
     def __ne__(self, other: Any) -> bool:
         return not self == other
@@ -246,14 +246,15 @@ class Dihedral_Fragment(object):
                     len([1 for other_cycle in self.cycles if cycle.j == other_cycle.j]),
                 )
 
-    def __canonical_rep__(self, keep_stereoscopic_centers: bool, dihedral_angles: Optional[Tuple[List[float], List[float]]]) -> Any:
+    def __canonical_rep__(self, keep_stereoscopic_centers: bool, dihedral_angles: Optional[Tuple[List[float], List[float]]] = None, can_flip_fragment: bool = True) -> Any:
         other = copy(self)
 
         if not keep_stereoscopic_centers:
             other.sort_neighbours_renumber_cycles(dihedral_angles)
         other.canonise_cycles()
         other.order_cycles()
-        other.flip_fragment_if_necessary()
+        if can_flip_fragment:
+            other.flip_fragment_if_necessary()
 
         return other
 
