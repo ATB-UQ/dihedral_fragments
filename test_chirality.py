@@ -4,7 +4,7 @@ from atb_outputs.mol_data import MolData
 from algorithm.atb.outputs import Output
 
 if __name__ == '__main__':
-    TEST_FRAGMENTS = ['O,H,C|C|C|O,H,C', 'H,H,H|C|C|H,H,H', 'CL,H|C|C|CL,H', 'C,C|N|C|O,H,C', 'C,C|N|C|O,C,H']
+    TEST_FRAGMENTS = ['S,O,N|P|O|C', 'S,N,O|P|O|C', 'O,H,C|C|C|O,H,C', 'H,H,H|C|C|H,H,H', 'CL,H|C|C|CL,H', 'C,C|N|C|O,H,C', 'C,C|N|C|O,C,H']
 
     for test_fragment in TEST_FRAGMENTS:
         print(test_fragment)
