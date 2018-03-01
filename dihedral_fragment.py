@@ -360,3 +360,9 @@ class Dihedral_Fragment(object):
 
 def remove_valences_in_fragment_str(fragment_str: str) -> str:
     return sub(CAPTURE('[a-zA-Z]+') + ONE_NUMBER + ONE_OR_MORE_TIMES, GROUP(1), fragment_str)
+
+def canonical_representation_for(dihedral_fragment_str: str, **kwargs: Dict[str, Any]) -> str:
+    return str(Dihedral_Fragment(dihedral_fragment_str, **kwargs))
+
+def is_canonical_representation_for(dihedral_fragment_str: str, **kwargs: Dict[str, Any]) -> str:  
+    return canonical_representation_for(dihedral_fragment_str) == dihedral_fragment_str
