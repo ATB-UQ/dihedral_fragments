@@ -66,7 +66,9 @@ def molid_after_capping_fragment(
             print('netcharge', molecule.netcharge())
             raise
 
-        molecules = [ATB_Mol(None, molecule_dict) for molecule_dict in api_response['matches'] if molecule_dict['inchi'] == api_response['search_molecule']['inchi']]
+        molecules = [ATB_Mol(None, molecule_dict) for molecule_dict in api_response['matches']]
+
+        scores = {match['molid']: match['blind_rmsd'] for match in api_response['matches']}
 
         if debug:
             print('molecules', molecules)
@@ -82,7 +84,7 @@ def molid_after_capping_fragment(
             print('molid_after_capping_fragment(): ATB_matches=', [atb_molecule.molid for atb_molecule in molecules])
             best_molecule = sorted(
                 molecules,
-                key=lambda atb_molecule: (not fragment in atb_molecule.dihedral_fragments, int(atb_molecule.molid)),
+                key=lambda atb_molecule: (not fragment in atb_molecule.dihedral_fragments, scores[atb_molecule.molid], int(atb_molecule.molid)),
             )[0]
             best_molid = best_molecule.molid
 
