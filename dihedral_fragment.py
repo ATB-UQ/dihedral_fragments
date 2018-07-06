@@ -139,6 +139,8 @@ class Dihedral_Fragment(object):
                 raise Exception('Wrong length of atom_list: {0}'.format(atom_list))
             keep_stereoscopic_centers = False
 
+        assert len(neighbours_1) > 0 and len(neighbours_4) > 0, (dihedral_string, atom_list)
+
         self.neighbours_1, self.neighbours_4 = map(deque, (neighbours_1, neighbours_4))
 
         canonical_rep = self.__canonical_rep__(keep_stereoscopic_centers, dihedral_angles=dihedral_angles, can_flip_fragment=can_flip_fragment)
@@ -296,6 +298,8 @@ class Dihedral_Fragment(object):
             left_dihedral_angles, right_dihedral_angles = [0.0 for _ in self.neighbours_1], [0.0 for _ in self.neighbours_4]
 
         def sorted_neighbours_permutation_dict(neighbours: List[str], angles: List[str]) -> Tuple[Deque[str], Dict[int, int]]:
+            assert len(neighbours) > 0
+
             get_neighbour = lambda item: item[1][0]
             on_dihedral_angle_then_desc_atomic_number_and_valence = lambda item: (item[1][1], on_desc_atomic_number_then_desc_valence(get_neighbour(item)))
 
