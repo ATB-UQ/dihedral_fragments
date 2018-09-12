@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/95523757.svg)](https://zenodo.org/badge/latestdoi/95523757)
+
 # Dihedral Fragments v1.0
 
 Author: Bertrand Caron
@@ -50,3 +52,7 @@ Note how the stereochemistry of the fragment is conserved.
 >>> str(Dihedral_Fragment(fragment))
 'H,H,H|N|C|C,N,O'
 ```
+
+# Citation / Attribution
+
+To cite this work, please use the following [Zenodo DOI](https://zenodo.org/badge/latestdoi/95523757).
