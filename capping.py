@@ -3,10 +3,13 @@ from pprint import pprint
 from sys import stderr
 from math import cos, sin, pi, sqrt
 
-from fragment_capping.helpers.molecule import Uncapped_Molecule, Molecule
-from fragment_capping.helpers.types_helpers import Fragment, Atom
-
 from dihedral_fragments.dihedral_fragment import element_valence_for_atom, NO_VALENCE
+
+try:
+    from fragment_capping.helpers.molecule import Uncapped_Molecule, Molecule
+    from fragment_capping.helpers.types_helpers import Fragment, Atom
+except ImportError:
+    raise RuntimeError("The `fragment_capping` module (https://github.com/bertrand-caron/fragment_capping) could not be found in your PYTHONPATH.")
 
 def best_capped_molecule_for_dihedral_fragment(fragment_str: Fragment, debug: bool = False) -> Molecule:
     molecule = uncapped_molecule_for_dihedral_fragment(fragment_str).get_best_capped_molecule_with_ILP(

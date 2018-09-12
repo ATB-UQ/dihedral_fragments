@@ -14,11 +14,17 @@ from dihedral_fragments.dihedral_fragment import element_valence_for_atom, on_as
 from dihedral_fragments.capping import best_capped_molecule_for_dihedral_fragment
 from dihedral_fragments.exceptions import PDB_Structure_Not_Found, ATB_Molecule_Running
 
-from fragment_capping.cache import cached
-from fragment_capping.helpers.types_helpers import ATB_Molid, Atom, FRAGMENT_CAPPING_DIR
-from fragment_capping.helpers.molecule import Molecule, Too_Many_Permutations
-from fragment_capping.helpers.babel import energy_minimised_pdb
-from atb_api import API, HTTPError, ATB_Mol
+try:
+    from fragment_capping.cache import cached
+    from fragment_capping.helpers.types_helpers import ATB_Molid, Atom, FRAGMENT_CAPPING_DIR
+    from fragment_capping.helpers.molecule import Molecule, Too_Many_Permutations
+    from fragment_capping.helpers.babel import energy_minimised_pdb
+except ImportError:
+    raise RuntimeError("The `fragment_capping` module (https://github.com/bertrand-caron/fragment_capping) could not be found in your PYTHONPATH.")
+try:
+    from atb_api import API, HTTPError, ATB_Mol
+except ImportError:
+    raise RuntimeError("The `atb_api_public` module (https://github.com/bertrand-caron/atb_api_public) could not be found in your PYTHONPATH.")
 
 from cairosvg import svg2png # pylint: disable=no-name-in-module
 
