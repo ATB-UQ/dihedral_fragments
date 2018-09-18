@@ -27,8 +27,6 @@ def test_CYP() -> None:
             ),
         )
 
-    exit()
-
 def test_canonical_rep() -> None:
     test_cases = (
         ('H,C4,H|SI|C|C2,H,C4', 'C4,H,H|SI|C|C4,C2,H'), # M(SI) > M(C)
@@ -39,6 +37,7 @@ def test_canonical_rep() -> None:
     )
 
     for (dihedral_string, solution) in test_cases:
+        print('TEST: {0}'.format(dihedral_string))
         answer = str(Dihedral_Fragment(dihedral_string))
         assert answer == solution, '"{0}" (answer) != "{1}" (expected)'.format(answer, solution)
 
@@ -79,7 +78,7 @@ def test_cyclic_fragments() -> None:
     )
     print(Dihedral_Fragment(str(polycyclic_fragment)))
 
-    polycyclic_fragment, answer = Dihedral_Fragment(atom_list=(['H', 'N', 'O'], 'C', 'C', ['C', 'C', 'H'], [[2, 2, 1], [1, 3, 0]])), 'C,C,H|C|C|O,N,H|020,131'
+    polycyclic_fragment, answer = Dihedral_Fragment(atom_list=(['H', 'N', 'O'], 'C', 'C', ['C', 'C', 'H'], [[2, 2, 1], [1, 2, 0]])), 'O,N,H|C|C|C,C,H|020,121'
     print(str(polycyclic_fragment))
     assert str(polycyclic_fragment) == answer, '{0} != {1} (expected)'.format(
         str(polycyclic_fragment),
@@ -87,13 +86,40 @@ def test_cyclic_fragments() -> None:
     )
     print(Dihedral_Fragment(str(polycyclic_fragment)))
 
-    assert str(Dihedral_Fragment('C,C,C|C|C|C,C,C|002,101,200')) == 'C,C,C|C|C|C,C,C|000,101,202'
+    polycyclic_fragment, answer = Dihedral_Fragment(atom_list=(['C', 'N', 'O'], 'C', 'C', ['O', 'O', 'O'], [[0, 6, 2], [1, 5, 1], [2, 4, 0]])), 'O,O,O|C|C|O,N,C|040,151,262'
+    print(str(polycyclic_fragment))
+    assert str(polycyclic_fragment) == answer, '{0} != {1} (expected)'.format(
+        str(polycyclic_fragment),
+        answer,
+    )
 
-    try:
-        Dihedral_Fragment('C,C,N|C|C|C,C,C|002,101,200')
-        raise Exception('This should have failed.')
-    except AssertionError:
-        print('Non-symmetric N=3 rings failed as expected.')
+    polycyclic_fragment, answer = Dihedral_Fragment(atom_list=(['C', 'N', 'O'], 'C', 'C', ['O', 'O', 'O'], [[0, 6, 2], [1, 5, 2], [2, 4, 2]])), 'O,O,O|C|C|O,N,C|040,051,062'
+    print(str(polycyclic_fragment))
+    assert str(polycyclic_fragment) == answer, '{0} != {1} (expected)'.format(
+        str(polycyclic_fragment),
+        answer,
+    )
+
+    polycyclic_fragment, answer = str(Dihedral_Fragment('C,C,C|C|C|C,C,C|002,101,200')), 'C,C,C|C|C|C,C,C|000,101,202'
+    print(str(polycyclic_fragment))
+    assert str(polycyclic_fragment) == answer, '{0} != {1} (expected)'.format(
+        str(polycyclic_fragment),
+        answer,
+    )
+
+    polycyclic_fragment, answer = str(Dihedral_Fragment('C,C,N|C|C|C,C,C|002,101,200')), 'N,C,C|C|C|C,C,C|000,101,202'
+    print(str(polycyclic_fragment))
+    assert str(polycyclic_fragment) == answer, '{0} != {1} (expected)'.format(
+        str(polycyclic_fragment),
+        answer,
+    )
+
+    polycyclic_fragment, answer = str(Dihedral_Fragment('C,C,C,C,C|P|P|C,C,C,C,C|004,103,212,311,420')), 'C,C,C,C,C|P|P|C,C,C,C,C|000,101,212,313,424'
+    print(str(polycyclic_fragment))
+    assert str(polycyclic_fragment) == answer, '{0} != {1} (expected)'.format(
+        str(polycyclic_fragment),
+        answer,
+    )
 
     try:
         Dihedral_Fragment('C,C,C|C|C|C,C,C|0100')
@@ -120,8 +146,8 @@ def test_chiral_str() -> None:
     print(dihedral_1.__str__(flag_chiral_sides=True))
 
 if __name__ == "__main__" :
-    #test_atom_list_init()
-    #test_patterns()
+    test_atom_list_init()
+    test_patterns()
     test_CYP()
     test_canonical_rep()
     test_chiral_str()

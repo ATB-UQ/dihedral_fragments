@@ -2,6 +2,9 @@ from copy import deepcopy, copy
 from re import search, sub
 from typing import Optional, Any, Tuple, Union, Sequence, NamedTuple, List, Callable, Dict
 from sys import stderr
+from itertools import combinations
+from collections import defaultdict
+from functools import reduce
 
 from dihedral_fragments.deque import deque, Deque, rotated_deque, reversed_deque
 from dihedral_fragments.atomic_numbers import ATOMIC_NUMBERS
@@ -58,7 +61,13 @@ def DESC(x: Optional[int]) -> Optional[int]:
     if x is None:
         return x
     else:
-        return -x
+        if type(x) in (list, tuple):
+            return type(x)(map(DESC, x))
+        else:
+            return -x
+
+assert DESC(1) == -1
+assert DESC((1, 2)) == (-1, -2)
 
 def on_asc_atomic_number_then_asc_valence(atom_desc: str) -> Tuple[int, int]:
     element, valence = element_valence_for_atom(atom_desc)
@@ -109,6 +118,7 @@ class Dihedral_Fragment(object):
         atom_list: Optional[Union[Tuple[List[str], str, str, List[str]], Tuple[List[str], str, str, List[str], str]]] = None,
         dihedral_angles: Optional[Tuple[List[float], List[float]]] = None,
         can_flip_fragment: bool = True,
+        can_reorder_substituents: bool = True,
     ) -> None:
         assert dihedral_string is not None or atom_list is not None, [dihedral_string, atom_list]
 
@@ -127,7 +137,6 @@ class Dihedral_Fragment(object):
                 if len(splitted_string) == 5
                 else []
             )
-            keep_stereoscopic_centers = True
         else:
             if len(atom_list) == 4:
                 neighbours_1, self.atom_2, self.atom_3, neighbours_4 = atom_list
@@ -137,13 +146,12 @@ class Dihedral_Fragment(object):
                 self.cycles = [Small_Cycle(*c) for c in self.cycles]
             else:
                 raise Exception('Wrong length of atom_list: {0}'.format(atom_list))
-            keep_stereoscopic_centers = False
 
         assert len(neighbours_1) > 0 and len(neighbours_4) > 0, (dihedral_string, atom_list)
 
         self.neighbours_1, self.neighbours_4 = map(deque, (neighbours_1, neighbours_4))
 
-        canonical_rep = self.__canonical_rep__(keep_stereoscopic_centers, dihedral_angles=dihedral_angles, can_flip_fragment=can_flip_fragment)
+        canonical_rep = self.__canonical_rep__(can_reorder_substituents, dihedral_angles=dihedral_angles, can_flip_fragment=can_flip_fragment)
 
         self.neighbours_1 = canonical_rep.neighbours_1
         self.atom_2 = canonical_rep.atom_2
@@ -195,63 +203,58 @@ class Dihedral_Fragment(object):
     def canonise_cycles(self: Any) -> None:
         if len(self.cycles) in (0, 1):
             pass
-        elif len(self.cycles) == 2:
-            cycle_0, cycle_1 = self.cycles
-            should_order_left = (self.neighbours_1[cycle_0.i] == self.neighbours_1[cycle_1.i])
-            should_order_right = (self.neighbours_4[cycle_0.j] == self.neighbours_4[cycle_1.j])
-            self.cycles = [
-                Cycle(
-                    min(cycle_0.i, cycle_1.i) if should_order_left else cycle_0.i,
-                    min(cycle_0.n, cycle_1.n),
-                    min(cycle_0.j, cycle_1.j) if should_order_right else cycle_0.j,
-                ),
-                Cycle(
-                    max(cycle_0.i, cycle_1.i) if should_order_left else cycle_1.i,
-                    max(cycle_0.n, cycle_1.n),
-                    max(cycle_0.j, cycle_1.j) if should_order_right else cycle_1.j,
-                ),
-            ]
         else:
-            Is, Ns, Js = list(zip(*self.cycles))
-            should_order = dict(
-                [
-                    (direction, len(set(neighbours)) == 1)
-                    for (direction, neighbours) in zip(
-                        ('left', 'right'),
-                        (self.neighbours_1, self.neighbours_4),
+            def reorder_equivalent_cycles(cycles: Sequence[Cycle]) -> List[Cycle]:
+                Is, Ns, Js = list(zip(*cycles))
+                return [
+                    Cycle(i, n, j)
+                    for (i, n, j) in
+                    zip(
+                        *list(map(
+                            sorted,
+                            (Is, Ns, Js),
+                        ))
                     )
-                ],
+                ]
+
+            def are_cycle_equivalent(*cycles: List[Cycle]) -> bool:
+                '''Equivalent cycles have the same length and at least one equivalent side.'''
+                return (
+                    len({cycle.n for cycle in cycles}) == 1
+                    and
+                    (
+                        len({self.neighbours_1[cycle.i] for cycle in cycles}) == 1
+                        or
+                        len({self.neighbours_4[cycle.j] for cycle in cycles}) == 1
+                    )
+                )
+
+            def equivalence_partition(iterable, relation):
+                classes = defaultdict(set)
+                for element in iterable:
+                    for sample, known in classes.items():
+                        if relation(sample, element):
+                            known.add(element)
+                            break
+                    else:
+                        classes[element].add(element)
+                return list(classes.values())
+
+            equivalent_cycles = sorted(
+                equivalence_partition(self.cycles, are_cycle_equivalent),
+                key=lambda group: list(group)[0].n,
             )
 
-            if ENFORCE_CANONICAL_TRICYLIC:
-                assert all(should_order.values()), 'Only symmetric (all similar or all different) environments are allowed for N-cycles where N >= 3 (fragment={0}, cycles={1}).'.format(
-                    str(self),
-                    self.cycles,
-                )
+            self.cycles = reduce(
+                lambda acc, e: acc + list(e),
+                map(reorder_equivalent_cycles, equivalent_cycles),
+                [],
+            )
 
-            self.cycles = [
-                Cycle(i, n, j)
-                for (i, n, j) in
-                zip(
-                    *list(map(
-                        sorted,
-                        (Is, Ns, Js),
-                    ))
-                )
-            ]
-
-            def cycle_key(cycle: Cycle) -> Tuple[int, int, int, int]:
-                return(
-                    self.neighbours_1[cycle.i],
-                    len([1 for other_cycle in self.cycles if cycle.i == other_cycle.i]),
-                    self.neighbours_4[cycle.j],
-                    len([1 for other_cycle in self.cycles if cycle.j == other_cycle.j]),
-                )
-
-    def __canonical_rep__(self, keep_stereoscopic_centers: bool, dihedral_angles: Optional[Tuple[List[float], List[float]]] = None, can_flip_fragment: bool = True) -> Any:
+    def __canonical_rep__(self, can_reorder_substituents: bool, dihedral_angles: Optional[Tuple[List[float], List[float]]] = None, can_flip_fragment: bool = True) -> Any:
         other = copy(self)
 
-        if not keep_stereoscopic_centers:
+        if can_reorder_substituents:
             other.sort_neighbours_renumber_cycles(dihedral_angles)
         other.canonise_cycles()
         other.order_cycles()
@@ -297,16 +300,48 @@ class Dihedral_Fragment(object):
         else:
             left_dihedral_angles, right_dihedral_angles = [0.0 for _ in self.neighbours_1], [0.0 for _ in self.neighbours_4]
 
-        def sorted_neighbours_permutation_dict(neighbours: List[str], angles: List[str]) -> Tuple[Deque[str], Dict[int, int]]:
+        def ring_connectivity(item: Any, side: str) -> int:
+            assert side in ('left', 'right'), side
+
+            (i, (substituent, _)) = item
+
+            connectivity = len(
+                tuple(
+                    1
+                    for cycle in self.cycles
+                    if int(i) == int(getattr(cycle, 'i' if side == 'left' else 'j'))
+                )
+            )
+
+            sum_of_lengths = sum(
+                DESC(cycle.n)
+                for cycle in self.cycles
+                if int(i) == int(getattr(cycle, 'i' if side == 'left' else 'j'))
+            )
+
+            return (connectivity, sum_of_lengths)
+
+        def sorted_neighbours_permutation_dict(neighbours: List[str], angles: List[str], side: str) -> Tuple[Deque[str], Dict[int, int]]:
             assert len(neighbours) > 0
+            assert side in ('left', 'right'), side
 
             get_neighbour = lambda item: item[1][0]
-            on_dihedral_angle_then_desc_atomic_number_and_valence = lambda item: (item[1][1], on_desc_atomic_number_then_desc_valence(get_neighbour(item)))
+            on_dihedral_angle_then_desc_atomic_number_and_valence_then_desc_ring_connectivity = lambda item: (
+                item[1][1],
+                on_desc_atomic_number_then_desc_valence(get_neighbour(item)),
+                DESC(ring_connectivity(item, side)),
+            )
+
+            if DEBUG:
+                print(
+                    'list(enumerate(zip(neighbours, angles))):',
+                    list(enumerate(zip(neighbours, angles))),
+                )
 
             sorted_neighbour_items = list(
                 sorted(
                     enumerate(zip(neighbours, angles)),
-                    key=on_dihedral_angle_then_desc_atomic_number_and_valence,
+                    key=on_dihedral_angle_then_desc_atomic_number_and_valence_then_desc_ring_connectivity,
                     reverse=False,
                 )
             )
@@ -315,6 +350,7 @@ class Dihedral_Fragment(object):
 
             if DEBUG:
                 print(
+                    "list(zip(neighbours, angles)):",
                     list(zip(neighbours, angles))
                 )
 
@@ -341,8 +377,8 @@ class Dihedral_Fragment(object):
                 permutation_dict,
             )
 
-        self.neighbours_1, permutation_1 = sorted_neighbours_permutation_dict(self.neighbours_1, left_dihedral_angles)
-        self.neighbours_4, permutation_4 = sorted_neighbours_permutation_dict(self.neighbours_4, right_dihedral_angles)
+        self.neighbours_1, permutation_1 = sorted_neighbours_permutation_dict(self.neighbours_1, left_dihedral_angles, 'left')
+        self.neighbours_4, permutation_4 = sorted_neighbours_permutation_dict(self.neighbours_4, right_dihedral_angles, 'right')
         self.cycles = [
             Cycle(permutation_1[neighbour_id_1], cycle_length, permutation_4[neighbour_id_4])
             for (neighbour_id_1, cycle_length, neighbour_id_4) in self.cycles
