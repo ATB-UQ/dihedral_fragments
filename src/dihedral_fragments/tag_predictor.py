@@ -2,7 +2,7 @@ from sys import stderr
 from os.path import exists
 from functools import reduce
 
-from atb_api_public.api import API
+from atb_api import API
 from dihedral_fragments.pattern_matching import re_pattern_matching_for
 from dihedral_fragments.chemistry import CHEMICAL_GROUPS
 
