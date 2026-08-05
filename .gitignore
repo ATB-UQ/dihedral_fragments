@@ -1,2 +1,10 @@
 *.pyc
 .ignore
+
+# Build artefacts an editable install regenerates; never source.
+__pycache__/
+build/
+dist/
+*.egg-info/
+.idea/
+.vscode/
