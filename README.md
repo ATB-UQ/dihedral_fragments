@@ -4,17 +4,43 @@
 
 Author: Bertrand Caron
 
-## Requirements
+A **dihedral fragment** is the string key for a rotatable bond and its first neighbours,
+e.g. `C,H,H|C|C|H,H,H` (left substituents | left atom | right atom | right substituents),
+canonicalised so that equivalent environments compare equal and, optionally, carrying the
+stereochemistry of the substituent order. This package defines the class and its grammar, and a
+few tools built on it (regex/SQL pattern matching, capping a fragment into a real molecule).
 
-The root `dihedral_fragments` directory must be in your `PYTHONPATH` shell variable.
-Failure to do so will result in an `ImportError` being raised:
+**Status: live-support.** It sits at the head of the dihedral subsystem: *fragment keys* (here) ->
+`dihedral_gap_service` (finds fragments with no archetype) -> `dihedral_scan_service` (QM scans)
+-> archetype fit and publication (`atb_graph_helpers`) -> the IFP/archetype library `core`
+uses. Only the core of the package is alive; see "What still works" below.
 
+## Install and test
+
+A normal editable install in the shared venv (no `PYTHONPATH` needed; the old note about putting
+the repo root on `PYTHONPATH` is obsolete):
+
+```bash
+uv pip install --python /home/atb/ATB/.venv/bin/python -e /home/atb/ATB/dihedral_fragments --no-deps
+cd /home/atb/ATB/dihedral_fragments/src/dihedral_fragments && python -m pytest -q test.py   # 7 pass
 ```
-$ PYTHONPATH="" python3 -c 'from dihedral_fragments.dihedral_fragment import Dihedral_Fragment'
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-ImportError: No module named 'dihedral_fragments'
-```
+
+`test_chirality.py` and `test_capping.py` currently fail at collection. The `Makefile` targets
+(`make test`, `mypy`) still point at the retired Python 3.5 / `ATB_ONE` layout.
+
+## What still works, and what does not
+
+| module | state |
+|---|---|
+| `dihedral_fragment.py` (`Dihedral_Fragment`, `canonical_representation_for`), `improper.py`, `regex.py`, `atomic_numbers.py`, `pattern_matching.py` | live: used by `core` (`core/atb/_outputs/dihedral_fragments.py`, `_outputs/mtb.py`, `helpers/fragment_dihedrals.py`), `atb_bonded_motifs.keys`, `dihedral_gap_service.keys`, and the website's `molecules` API (`pattern_matching`) |
+| `capping.py` | imports; wraps `fragment_capping` to cap a fragment |
+| `cap.py`, `molecule_for_fragment.py`, `tag_predictor.py`, `fragment_generator.py`, `tasks/cap_all.py` | **broken in the current venv**: they do `from atb_api import API, HTTPError, ATB_Mol` (the modern `atb_api_public` no longer exports `HTTPError`) and use a dead 2017 host (`scmb-atb.biosci.uq.edu.au/atb-uqbcaron`). Used only by two hand-run website tasks (`cap_all_ATB_fragments.py`, `submit_protein_fragments.py`) |
+
+## Dependencies
+
+`setup.cfg` declares only `cairosvg`; `fragment_capping`, `atb_outputs` and `atb_api_public` are
+commented out of it (they were `git+ssh` URLs) and come from the shared venv. Importing the
+live modules needs only the standard library.
 
 ## Use cases
 
@@ -52,6 +78,12 @@ Note how the stereochemistry of the fragment is conserved.
 >>> str(Dihedral_Fragment(fragment))
 'H,H,H|N|C|C,N,O'
 ```
+
+## Platform wiring
+
+Used by `core`, `atb_bonded_motifs`, `dihedral_gap_service`, `dihedral_parameterization` and
+`website`; uses `fragment_capping` (capping), `atb_outputs` and `atb_api_public` (the broken
+modules above). No environment variables, no vendor binaries, no DB.
 
 # Citation / Attribution
 
