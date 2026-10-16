@@ -22,25 +22,31 @@ the repo root on `PYTHONPATH` is obsolete):
 
 ```bash
 uv pip install --python /home/atb/ATB/.venv/bin/python -e /home/atb/ATB/dihedral_fragments --no-deps
-cd /home/atb/ATB/dihedral_fragments/src/dihedral_fragments && python -m pytest -q test.py   # 7 pass
+cd /home/atb/ATB/dihedral_fragments/src/dihedral_fragments && python -m pytest -q   # 10 pass, 2 xfail (known bugs)
 ```
 
-`test_chirality.py` and `test_capping.py` currently fail at collection. The `Makefile` targets
-(`make test`, `mypy`) still point at the retired Python 3.5 / `ATB_ONE` layout.
+`test.py` is mostly print-only; `test_grammar.py` holds the real assertions (canonical-form
+invariances, round trips, pattern matching) and two strict xfails recording known bugs (review
+2026-10: two-letter elements with a valence digit such as `CL1` mis-sort, and
+`sql_pattern_matching_for` interpolates user text into SQL). The `Makefile` targets still point at
+the retired Python 3.5 / `ATB_ONE` layout.
 
 ## What still works, and what does not
 
 | module | state |
 |---|---|
-| `dihedral_fragment.py` (`Dihedral_Fragment`, `canonical_representation_for`), `improper.py`, `regex.py`, `atomic_numbers.py`, `pattern_matching.py` | live: used by `core` (`core/atb/_outputs/dihedral_fragments.py`, `_outputs/mtb.py`, `helpers/fragment_dihedrals.py`), `atb_bonded_motifs.keys`, `dihedral_gap_service.keys`, and the website's `molecules` API (`pattern_matching`) |
-| `capping.py` | imports; wraps `fragment_capping` to cap a fragment |
-| `cap.py`, `molecule_for_fragment.py`, `tag_predictor.py`, `fragment_generator.py`, `tasks/cap_all.py` | **broken in the current venv**: they do `from atb_api import API, HTTPError, ATB_Mol` (the modern `atb_api_public` no longer exports `HTTPError`) and use a dead 2017 host (`scmb-atb.biosci.uq.edu.au/atb-uqbcaron`). Used only by two hand-run website tasks (`cap_all_ATB_fragments.py`, `submit_protein_fragments.py`) |
+| `dihedral_fragment.py` (`Dihedral_Fragment`, `canonical_representation_for`), `improper.py`, `regex.py`, `atomic_numbers.py`, `pattern_matching.py`, `chemistry.py` | live: used by `core` (`core/atb/_outputs/dihedral_fragments.py`), `atb_bonded_motifs.keys`, `dihedral_gap_service.keys`, and the website (`pattern_matching`, `chemistry`: restricted tab and API call `molids_with_dihedral_fragment`) |
+| `capping.py`, `tag_predictor.py`, `fragment_generator.py` | import, but nothing imports them (hand-run only; `tag_predictor` compiles patterns and prints at import) |
+
+Removed in the 2026-10 review (they raised ImportError on `atb_api.HTTPError`, used a dead 2017
+host, and had no importer): `cap.py`, `molecule_for_fragment.py`, `tasks/cap_all.py`,
+`latex_table.py`, `test_capping.py`, `test_chirality.py`; see git history.
 
 ## Dependencies
 
-`setup.cfg` declares only `cairosvg`; `fragment_capping`, `atb_outputs` and `atb_api_public` are
-commented out of it (they were `git+ssh` URLs) and come from the shared venv. Importing the
-live modules needs only the standard library.
+`setup.cfg` declares only `cairosvg` (now unused); `pattern_matching` needs `jinja2` (undeclared),
+`capping` needs `fragment_capping`, `tag_predictor` needs `atb_api_public`; all come from the
+shared venv. `dihedral_fragment.py` itself needs only the standard library.
 
 ## Use cases
 
