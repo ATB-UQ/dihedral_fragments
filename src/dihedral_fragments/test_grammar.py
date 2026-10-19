@@ -63,8 +63,11 @@ def test_two_letter_elements_with_valence_are_canonical():
     assert _s(['CL1', 'BR1', 'C4'], 'C4', 'C4', ['H1'] * 3) == _s(['BR1', 'CL1', 'C4'], 'C4', 'C4', ['H1'] * 3)
 
 
-@pytest.mark.xfail(strict=True, reason=(
-    'review 2026-10 dihedral_fragments F2: sql_pattern_matching_for interpolates the user '
-    'string into SQL without quoting'))
-def test_sql_pattern_does_not_pass_quotes_through():
-    assert '"' not in sql_pattern_matching_for('C" OR 1=1 OR "|C|C|H').split('"', 1)[1].rsplit('"', 1)[0]
+def test_sql_pattern_refuses_quotes_and_other_non_grammar_characters():
+    for bad in ('C" OR 1=1 OR "|C|C|H', 'C,H,H|C|C|H,H,H" OR SLEEP(5) OR "', "C'|C|C|H", 'C|C|C|H\\', 'C |C|C|H', 'C|C|C|H;'):
+        with pytest.raises(ValueError):
+            sql_pattern_matching_for(bad)
+        with pytest.raises(ValueError):
+            re_pattern_matching_for(bad)
+    with pytest.raises(ValueError):
+        sql_pattern_matching_for('C|C|C|H%', matching_field_name='x" OR 1 OR "')

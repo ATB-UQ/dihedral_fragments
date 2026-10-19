@@ -1,4 +1,4 @@
-from re import search, sub, findall
+from re import search, sub, findall, fullmatch
 from operator import itemgetter
 from typing import List, Tuple, Sequence, Dict, Callable, Any, NamedTuple, Optional
 from itertools import product, permutations, groupby
@@ -219,6 +219,7 @@ def re_patterns(pattern: Dihedral_Matching_Pattern, full_regex: bool = False, fl
     return patterns
 
 def re_pattern_matching_for(pattern: Dihedral_Matching_Pattern, debug: bool = False, metadata: Any = None) -> Callable[[Dihedral_Fragment_Str], bool]:
+    check_pattern(pattern)
     if not (has_substitution_pattern(pattern) or has_regex_pattern(pattern)):
         return lambda test_string: test_string == str(Dihedral_Fragment(pattern))
     else:
@@ -236,7 +237,22 @@ def re_pattern_matching_for(pattern: Dihedral_Matching_Pattern, debug: bool = Fa
 
         return match_pattern_to
 
+# Every character the pattern grammar uses: atoms (letters, valence digits), the group/neighbour
+# separators, the LIKE wildcards and the operators of OPERATORS.  Anything else (quotes,
+# backslash, whitespace, ...) is refused because the result is interpolated into SQL.
+VALID_PATTERN = r'[A-Za-z0-9,|%_!+{}\-]*'
+
+class Invalid_Pattern(ValueError):
+    pass
+
+def check_pattern(pattern: str) -> str:
+    if not isinstance(pattern, str) or fullmatch(VALID_PATTERN, pattern) is None:
+        raise Invalid_Pattern('Invalid characters in dihedral fragment pattern: {0!r}'.format(pattern))
+    return pattern
+
 def sql_pattern_matching_for(pattern: Dihedral_Matching_Pattern, matching_field_name: str = 'dihedral_string'):
+    check_pattern(pattern)
+    check_pattern(matching_field_name)
     if not (has_substitution_pattern(pattern) or has_regex_pattern(pattern)):
         return '{matching_field_name}="{pattern}"'.format(
             matching_field_name=matching_field_name,
