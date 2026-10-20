@@ -45,7 +45,7 @@ host, and had no importer): `cap.py`, `molecule_for_fragment.py`, `tasks/cap_all
 ## Dependencies
 
 `setup.cfg` declares only `cairosvg` (now unused); `pattern_matching` needs `jinja2` (undeclared),
-`capping` needs `fragment_capping`, `tag_predictor` needs `atb_api_public`; all come from the
+`capping` needs `fragment_capping`, `tag_predictor` needs `atb_client`; all come from the
 shared venv. `dihedral_fragment.py` itself needs only the standard library.
 
 ## Use cases
@@ -88,7 +88,7 @@ Note how the stereochemistry of the fragment is conserved.
 ## Platform wiring
 
 Used by `core`, `atb_bonded_motifs`, `dihedral_gap_service`, `dihedral_parameterization` and
-`website`; uses `fragment_capping` (capping), `atb_outputs` and `atb_api_public` (the broken
+`website`; uses `fragment_capping` (capping), `atb_outputs` and `atb_client` (the broken
 modules above). No environment variables, no vendor binaries, no DB.
 
 # Citation / Attribution

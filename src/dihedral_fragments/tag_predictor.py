@@ -2,7 +2,7 @@ from sys import stderr
 from os.path import exists
 from functools import reduce
 
-from atb_api import API
+from atb_client.legacy import API
 from dihedral_fragments.pattern_matching import re_pattern_matching_for
 from dihedral_fragments.chemistry import CHEMICAL_GROUPS
 
@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
     DATA_SETS_TAGS = set(['Shivakumar et al.', 'Marenich et al.', 'Mobley et al.', 'SAMPL0', 'SAMPL1', 'SAMPL2', 'SAMPL4'])
 
-    api = API(debug=True, api_format='pickle')
+    api = API(debug=True)  # API v1 / JSON: no pickle deserialisation
     molecules = api.Molecules.search(tag='Mobley et al.', max_atoms=15)
     for molecule in molecules:
         if molecule.molid in ignored_molids:
